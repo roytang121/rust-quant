@@ -20,6 +20,5 @@ pub async fn connect_wss_async(
     url: &str,
 ) -> Result<WebSocketStream<MaybeTlsStream<TcpStream>>, Box<dyn Error>> {
     let socket = create_websocket(url).await?;
-    // socket.send(Message::Text(init_message)).await?;
     Ok(socket)
 }
