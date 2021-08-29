@@ -2,15 +2,16 @@
 extern crate log;
 
 use std::error::Error;
+use std::future::Future;
 use std::time::Duration;
 
-use hello_rust::ftx::market_depth::market_depth;
-use hello_rust::ftx::ticker::ticker;
-use std::future::Future;
+use rust_quant::ftx::market_depth::market_depth;
+use rust_quant::ftx::ticker::ticker;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
+
     let args: Vec<String> = std::env::args().collect();
     let exchange = args
         .get(1)

@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::hash::{Hash, Hasher};
+use crate::model::constants::Exchanges;
 
 // PriceLevel
 #[derive(Serialize, Deserialize, Debug)]
@@ -36,9 +37,11 @@ impl Clone for PriceLevel {
 }
 // end PriceLevel
 
-#[derive(Serialize, Deserialize, Debug)]
-pub struct OrderBookSnapshot {
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct MarketDepth {
     pub timestamp: i64,
+    pub exchange: Exchanges,
+    pub market: String,
     pub bids: Vec<PriceLevel>,
     pub asks: Vec<PriceLevel>,
 }

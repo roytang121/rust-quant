@@ -1,5 +1,5 @@
 use std::collections::HashSet;
-
+use strum_macros;
 use futures_util::stream::SplitStream;
 use futures_util::StreamExt;
 use serde_json::{json, Value};
@@ -11,10 +11,11 @@ use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
 
 use crate::ftx::types::{OrderBookData, WebSocketResponse};
 use crate::ftx::utils::{connect_ftx, ping_pong};
-use crate::model::market_data_model::{OrderBookSnapshot, PriceLevel};
+use crate::model::market_data_model::{MarketDepth, PriceLevel};
 use crate::pubsub::simple_message_bus::RedisBackedMessageBus;
-use crate::pubsub::MessageBus;
+use crate::pubsub::{MessageBus, PublishPayload, MessageBusUtils};
 use serde::Serialize;
+use crate::model::constants::{Exchanges, PublishChannel};
 
 pub fn process_orderbook_update(
     update: &OrderBookData,
@@ -65,13 +66,13 @@ pub fn keys_of_hashset(hs: &HashSet<PriceLevel>, desc: bool) -> Vec<PriceLevel> 
 
 pub async fn subscribe_message(
     stream: &mut SplitStream<WebSocketStream<MaybeTlsStream<TcpStream>>>,
+    message_bus_sender: &tokio::sync::mpsc::Sender<PublishPayload>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let mut bids_ob = HashSet::<PriceLevel>::new();
     let mut asks_ob = HashSet::<PriceLevel>::new();
-    let mut message_bus = RedisBackedMessageBus::new().await?;
     while let Some(msg) = stream.next().await {
         let msg = msg?;
-        let time_start_ms = chrono::Utc::now().timestamp_millis();
+        let time_start_ns = chrono::Utc::now().timestamp_nanos();
         let parse_result =
             simd_json::from_slice::<WebSocketResponse<OrderBookData>>(&mut *msg.into_data());
         match parse_result {
@@ -79,23 +80,34 @@ pub async fn subscribe_message(
                 log::debug!("{:?}", response);
                 if let Some(orderbook_data) = response.data {
                     process_orderbook_update(&orderbook_data, &mut bids_ob, &mut asks_ob);
-                    let snapshot = OrderBookSnapshot {
+                    let market = response.market.expect("missing market");
+                    let snapshot = MarketDepth {
+                        exchange: Exchanges::FTX,
+                        market: market.clone(),
                         timestamp: chrono::Utc::now().timestamp_millis(),
                         bids: keys_of_hashset(&bids_ob, true),
                         asks: keys_of_hashset(&asks_ob, false),
                     };
-                    let market = response.market.expect("missing market");
                     log::debug!("{:?}", snapshot);
+                    let payload = PublishPayload {
+                        channel: format!("{}:{}:{}", PublishChannel::MarketDepth.to_string(), Exchanges::FTX.to_string(), market),
+                        payload: serde_json::to_string(&snapshot)?,
+                    };
 
-                    let time_end_ms = chrono::Utc::now().timestamp_millis();
-                    log::debug!(
-                        "process marketdepth before sent: {} ms",
-                        time_end_ms - time_start_ms
+                    if let Err(err) = MessageBusUtils::publish_async(message_bus_sender, payload).await {
+                        log::error!("md process msg error: {}", err);
+                    }
+
+                    let time_end_ns = chrono::Utc::now().timestamp_nanos();
+                    log::info!(
+                        "process marketdepth after publish: {} nanos, {} ms",
+                        time_end_ns - time_start_ns,
+                        (time_end_ns - time_start_ns) as f32 * 0.000001
                     );
-
-                    let result = message_bus
-                        .publish(format!("marketdepth:ftx:{}", market).as_str(), &snapshot)
-                        .await?;
+                    // let result = message_bus
+                        // .publish(format!("marketdepth:{}:{}", Exchanges::FTX, market).as_str(), &snapshot)
+                        // .publish_async(payload)
+                        // .await?;
                 } else {
                     log::info!("{:?}", response);
                 }
@@ -119,22 +131,33 @@ pub async fn market_depth(market: &str) -> Result<(), Box<dyn std::error::Error>
         .map(Ok)
         .forward(write);
 
+    // message bus instance
+    let mut message_bus = RedisBackedMessageBus::new().await?;
+    let message_bus_sender = message_bus.publish_tx.clone();
     // init message
     let init_message = json!({
         "op": "subscribe",
         "channel": "orderbook",
         "market": market,
     });
-
     msg_tx.send(Message::Text(init_message.to_string())).await;
 
+    // polling message bus publisher
+    let message_bus_poll= message_bus.publish_poll();
+
     tokio::select! {
-        Err(err) = subscribe_message(&mut sub) => {
+        Err(err) = subscribe_message(&mut sub, &message_bus_sender) => {
             log::error!("subscribe_message error: {}", err);
         },
-        _ = forward_write_to_ws => {
+        Err(err) = forward_write_to_ws => {
+            log::error!("forward_write_to_ws error: {}", err);
         }
-        _ = ping_pong(msg_tx) => {},
+        Err(err) = ping_pong(msg_tx) => {
+            log::error!("ping_pong error: {}", err);
+        },
+        Err(err) = message_bus_poll => {
+            log::error!("message_bus_poll error: {}", err);
+        },
     }
     Ok(())
 }
