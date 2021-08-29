@@ -51,7 +51,7 @@ impl OrderUpdate {
         match &self.client_id {
             None => {
                 panic!("Error getting OrderUpdate Key");
-            },
+            }
             Some(cid) => return Clone::clone(cid),
         }
     }

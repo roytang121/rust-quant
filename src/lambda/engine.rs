@@ -1,15 +1,16 @@
-use crate::model::market_data_model::MarketDepth;
+use crate::cache::MarketDepthCache;
+use crate::core::config::ConfigStore;
+use crate::core::orders::{OrderGateway, OrderUpdateService};
+use crate::ftx::ftx_order_gateway::FtxOrderGateway;
+use crate::lambda::lambda::Lambda;
 use crate::model::constants::Exchanges;
-use tokio::sync::RwLock;
-use crate::pubsub::{SubscribeMarketDepthRequest, MarketDepthCache};
+use crate::model::market_data_model::MarketDepth;
+use crate::model::Instrument;
+use crate::pubsub::simple_message_bus::RedisBackedMessageBus;
+use crate::pubsub::SubscribeMarketDepthRequest;
 use std::sync::Arc;
 use std::time::Duration;
-use crate::ftx::ftx_order_gateway::FtxOrderGateway;
-use crate::core::orders::{OrderGateway, OrderUpdateService};
-use crate::core::config::ConfigStore;
-use crate::pubsub::simple_message_bus::RedisBackedMessageBus;
-use crate::model::Instrument;
-use crate::lambda::lambda::Lambda;
+use tokio::sync::RwLock;
 
 pub async fn engine(market_depth_requests: Vec<SubscribeMarketDepthRequest>, optimizer: i32) {
     // market depth request
@@ -33,7 +34,12 @@ pub async fn engine(market_depth_requests: Vec<SubscribeMarketDepthRequest>, opt
     // lambda
     let lambda = async move {
         tokio::time::sleep(Duration::from_secs(3)).await;
-        let instrument = Instrument::new(Exchanges::FTX, "ETH-PERP", ous_cache_ref, message_bus_sender);
+        let instrument = Instrument::new(
+            Exchanges::FTX,
+            "ETH-PERP",
+            ous_cache_ref,
+            message_bus_sender,
+        );
         let lambda = Lambda::new(md_cache_ref, instrument);
         lambda.subscribe().await
     };

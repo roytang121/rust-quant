@@ -4,8 +4,8 @@ extern crate log;
 use rust_quant::ftx::FtxRestClient;
 use rust_quant::model::constants::Exchanges;
 use rust_quant::model::{OrderRequest, OrderSide, OrderType};
-use std::time::Duration;
 use std::sync::Arc;
+use std::time::Duration;
 use tokio::sync::RwLock;
 
 #[tokio::main]
@@ -36,7 +36,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 log::info!("{}", json);
             }
         });
-        counter+=1;
+        counter += 1;
     }
     tokio::time::sleep(Duration::from_secs(10)).await;
     Ok(())

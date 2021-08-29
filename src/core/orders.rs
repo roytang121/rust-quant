@@ -1,5 +1,7 @@
 use crate::model::constants::{Exchanges, PublishChannel};
-use crate::model::{Instrument, OrderRequest, OrderStatus, OrderUpdate, OrderUpdateCache, CancelOrderRequest};
+use crate::model::{
+    CancelOrderRequest, Instrument, OrderRequest, OrderStatus, OrderUpdate, OrderUpdateCache,
+};
 use crate::pubsub::simple_message_bus::{MessageConsumer, RedisBackedMessageBus};
 use crate::pubsub::PublishPayload;
 use async_trait::async_trait;
@@ -29,10 +31,8 @@ impl OrderUpdateService {
     }
 
     pub async fn subscribe(&mut self) -> Result<(), Box<dyn std::error::Error>> {
-        let mut sub = RedisBackedMessageBus::subscribe(
-            vec![PublishChannel::OrderUpdate.as_ref()],
-            self,
-        );
+        let mut sub =
+            RedisBackedMessageBus::subscribe(vec![PublishChannel::OrderUpdate.as_ref()], self);
         sub.await
     }
 }
@@ -53,7 +53,10 @@ impl MessageConsumer for OrderUpdateService {
                 }
             }
         } else {
-            log::info!("Received order_update with empty clientId: {:?}", order_update);
+            log::info!(
+                "Received order_update with empty clientId: {:?}",
+                order_update
+            );
         }
         Ok(())
     }
@@ -90,9 +93,11 @@ impl OrderRequest {
         message_bus_sender.send(payload).await?;
         Ok(())
     }
-    pub async fn cancel_order(order_update_cache: &OrderUpdateCache,
-                              message_bus_sender: &tokio::sync::mpsc::Sender<PublishPayload>,
-                              client_id: &str) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn cancel_order(
+        order_update_cache: &OrderUpdateCache,
+        message_bus_sender: &tokio::sync::mpsc::Sender<PublishPayload>,
+        client_id: &str,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         if let Some(mut order_update) = order_update_cache.get_mut(client_id) {
             order_update.status = OrderStatus::PendingCancel
         }

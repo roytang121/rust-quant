@@ -2,14 +2,14 @@ use std::error::Error;
 use std::time::Duration;
 
 use futures_util::stream::{SplitSink, SplitStream};
-use futures_util::{StreamExt, SinkExt};
+use futures_util::{SinkExt, StreamExt};
 use serde_json::json;
 use tokio::net::TcpStream;
 use tokio_tungstenite::tungstenite::Message;
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
 
-use sha2::Sha256;
 use hmac::{Hmac, Mac, NewMac};
+use sha2::Sha256;
 
 use crate::conn::websocket::connect_wss_async;
 use crate::core::config::ConfigStore;
@@ -39,10 +39,10 @@ pub async fn connect_ftx() -> Result<
 
 pub async fn connect_ftx_authed() -> Result<
     (
-    SplitSink<WebSocketStream<MaybeTlsStream<TcpStream>>, Message>,
-    SplitStream<WebSocketStream<MaybeTlsStream<TcpStream>>>,
+        SplitSink<WebSocketStream<MaybeTlsStream<TcpStream>>, Message>,
+        SplitStream<WebSocketStream<MaybeTlsStream<TcpStream>>>,
     ),
-    Box<dyn std::error::Error>
+    Box<dyn std::error::Error>,
 > {
     let cfg = ConfigStore::load();
     let (mut write, read) = connect_ftx().await?;

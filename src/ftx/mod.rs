@@ -1,9 +1,9 @@
+pub mod ftx_order_gateway;
 pub mod market_depth;
+mod rest;
+mod rest_tests;
 pub mod ticker;
 mod types;
 mod utils;
-mod rest;
-pub mod ftx_order_gateway;
-mod rest_tests;
 
-pub use rest::{FtxRestClient};
+pub use rest::FtxRestClient;

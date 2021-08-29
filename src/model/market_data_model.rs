@@ -1,6 +1,6 @@
+use crate::model::constants::Exchanges;
 use serde::{Deserialize, Serialize};
 use std::hash::{Hash, Hasher};
-use crate::model::constants::Exchanges;
 
 // PriceLevel
 #[derive(Serialize, Deserialize, Debug)]

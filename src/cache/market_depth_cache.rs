@@ -1,13 +1,13 @@
-use std::collections::HashMap;
-use crate::model::market_data_model::MarketDepth;
-use redis::Msg;
-use std::time::Duration;
-use std::cell::Cell;
-use tokio_stream::StreamExt;
-use std::sync::Arc;
-use tokio::sync::RwLock;
 use crate::model::constants::Exchanges;
+use crate::model::market_data_model::MarketDepth;
 use dashmap::DashMap;
+use redis::Msg;
+use std::cell::Cell;
+use std::collections::HashMap;
+use std::sync::Arc;
+use std::time::Duration;
+use tokio::sync::RwLock;
+use tokio_stream::StreamExt;
 
 pub struct MarketDepthCache {
     pub cache: Arc<DashMap<String, MarketDepth>>,

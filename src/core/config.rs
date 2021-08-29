@@ -1,4 +1,4 @@
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 #[derive(Debug, Serialize, Deserialize, Default)]
 pub struct Config {
     pub redis_url: String,
@@ -14,11 +14,10 @@ pub struct ConfigStore {
 impl ConfigStore {
     pub fn new() -> ConfigStore {
         let environment = std::env::var("ENV").expect("ENV is not defined");
-        let mut cfg: Config = confy::load_path(format!("./{}.config.toml", environment.to_lowercase())).unwrap();
+        let mut cfg: Config =
+            confy::load_path(format!("./{}.config.toml", environment.to_lowercase())).unwrap();
         log::info!("Loaded config: {:#?}", cfg);
-        ConfigStore {
-            cfg
-        }
+        ConfigStore { cfg }
     }
     pub fn load() -> Config {
         ConfigStore::new().cfg

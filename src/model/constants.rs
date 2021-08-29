@@ -1,6 +1,6 @@
+use serde::{Deserialize, Serialize};
 use std::convert::AsRef;
 use strum_macros::AsRefStr;
-use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, strum_macros::Display, Clone, PartialOrd, PartialEq)]
 pub enum Exchanges {
@@ -9,7 +9,9 @@ pub enum Exchanges {
     OKEX,
 }
 
-#[derive(Serialize, Deserialize, Debug, strum_macros::Display, AsRefStr, Clone, PartialOrd, PartialEq)]
+#[derive(
+    Serialize, Deserialize, Debug, strum_macros::Display, AsRefStr, Clone, PartialOrd, PartialEq,
+)]
 pub enum PublishChannel {
     OrderUpdate,
     OrderRequest,

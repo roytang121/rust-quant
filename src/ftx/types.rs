@@ -1,6 +1,6 @@
-use serde::{Deserialize, Serialize};
-use crate::model::{OrderUpdate, OrderType, OrderSide, OrderStatus, OrderRequest};
 use crate::model::constants::Exchanges;
+use crate::model::{OrderRequest, OrderSide, OrderStatus, OrderType, OrderUpdate};
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 #[derive(Deserialize, Serialize, Debug)]

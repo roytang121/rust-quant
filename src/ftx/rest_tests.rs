@@ -1,9 +1,9 @@
 #[cfg(test)]
 mod rest_tests {
     use crate::ftx::FtxRestClient;
+    use serde_json::Value;
     use std::collections::hash_map::RandomState;
     use std::collections::HashMap;
-    use serde_json::Value;
     use std::error::Error;
 
     #[tokio::test]

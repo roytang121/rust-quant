@@ -2,8 +2,8 @@ use crate::core::orders::OrderGateway;
 use crate::ftx::types::{FtxOrderData, WebSocketResponse, WebSocketResponseType};
 use crate::ftx::utils::{connect_ftx, connect_ftx_authed, ping_pong};
 use crate::ftx::FtxRestClient;
-use crate::model::constants::{PublishChannel, Exchanges};
-use crate::model::{OrderRequest, OrderUpdate, CancelOrderRequest};
+use crate::model::constants::{Exchanges, PublishChannel};
+use crate::model::{CancelOrderRequest, OrderRequest, OrderUpdate};
 use crate::pubsub::simple_message_bus::{MessageConsumer, RedisBackedMessageBus};
 use async_trait::async_trait;
 use dashmap::DashMap;
@@ -161,7 +161,7 @@ impl MessageConsumer for FtxOrderRequestService {
 }
 
 struct FtxCancelOrderService {
-    client: Arc<RwLock<FtxRestClient>>
+    client: Arc<RwLock<FtxRestClient>>,
 }
 impl FtxCancelOrderService {
     pub fn new() -> Self {
@@ -177,7 +177,10 @@ impl FtxCancelOrderService {
         // parallel
         tokio::spawn(async move {
             let client = client_ref.read().await;
-            match client.cancel_order_cid(cancel_order_request.client_id.as_str()).await {
+            match client
+                .cancel_order_cid(cancel_order_request.client_id.as_str())
+                .await
+            {
                 Ok(response) => {}
                 Err(err) => {}
             }

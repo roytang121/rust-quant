@@ -1,7 +1,7 @@
-use std::sync::Arc;
-use dashmap::DashMap;
 use crate::model::market_data_model::MarketDepth;
 use crate::model::{Instrument, OrderSide};
+use dashmap::DashMap;
+use std::sync::Arc;
 use std::time::Duration;
 
 pub struct Lambda {
@@ -10,16 +10,22 @@ pub struct Lambda {
 }
 
 impl Lambda {
-    pub fn new(market_depth: Arc<DashMap<String, MarketDepth>>, depth_instrument: Instrument) -> Self {
+    pub fn new(
+        market_depth: Arc<DashMap<String, MarketDepth>>,
+        depth_instrument: Instrument,
+    ) -> Self {
         Lambda {
             market_depth,
-            depth_instrument
+            depth_instrument,
         }
     }
 
     async fn update(&self) -> Result<(), Box<dyn std::error::Error>> {
         loop {
-            log::info!("lambda update open_orders: {:?}", self.depth_instrument.get_order_orders(true));
+            log::info!(
+                "lambda update open_orders: {:?}",
+                self.depth_instrument.get_order_orders(true)
+            );
             tokio::time::sleep(Duration::from_millis(500)).await;
         }
     }
@@ -32,8 +38,11 @@ impl Lambda {
                 let open_orders = self.depth_instrument.get_order_orders(true);
                 if open_orders.is_empty() {
                     log::info!("sending order for instrument {:?}", self.depth_instrument);
-                    self.depth_instrument.send_order(OrderSide::Buy, 100.0, 0.001).await?;
-                } else {}
+                    self.depth_instrument
+                        .send_order(OrderSide::Buy, 100.0, 0.001)
+                        .await?;
+                } else {
+                }
             }
             tokio::time::sleep(Duration::from_millis(10)).await;
         }
@@ -43,7 +52,9 @@ impl Lambda {
         loop {
             let open_orders = self.depth_instrument.get_order_orders(false);
             for order in open_orders {
-                self.depth_instrument.cancel_order(order.client_id.unwrap().as_str()).await?;
+                self.depth_instrument
+                    .cancel_order(order.client_id.unwrap().as_str())
+                    .await?;
             }
             tokio::time::sleep(Duration::from_millis(10)).await;
         }

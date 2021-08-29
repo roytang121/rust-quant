@@ -1,25 +1,32 @@
-use crate::model::constants::Exchanges;
-use crate::model::{OrderUpdate, OrderUpdateCache, OrderStatus, OrderRequest, OrderSide, OrderType};
-use serde::{Deserialize, Serialize};
-use crate::pubsub::simple_message_bus::RedisBackedMessageBus;
 use crate::core::orders::OrderUpdateService;
+use crate::model::constants::Exchanges;
+use crate::model::{
+    OrderRequest, OrderSide, OrderStatus, OrderType, OrderUpdate, OrderUpdateCache,
+};
+use crate::pubsub::simple_message_bus::RedisBackedMessageBus;
 use crate::pubsub::PublishPayload;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug)]
 pub struct Instrument {
     pub exchange: Exchanges,
     pub market: String,
     order_cache: OrderUpdateCache,
-    message_bus_sender: tokio::sync::mpsc::Sender<PublishPayload>
+    message_bus_sender: tokio::sync::mpsc::Sender<PublishPayload>,
 }
 
 impl Instrument {
-    pub fn new(exchange: Exchanges, market: &str, order_cache: OrderUpdateCache, message_bus_sender: tokio::sync::mpsc::Sender<PublishPayload>) -> Self {
+    pub fn new(
+        exchange: Exchanges,
+        market: &str,
+        order_cache: OrderUpdateCache,
+        message_bus_sender: tokio::sync::mpsc::Sender<PublishPayload>,
+    ) -> Self {
         Instrument {
             exchange,
             market: market.to_string(),
             order_cache,
-            message_bus_sender
+            message_bus_sender,
         }
     }
 
@@ -38,13 +45,17 @@ impl Instrument {
                     }
                     OrderStatus::Closed => {}
                 }
-
             }
         }
         open_orders
     }
 
-    pub async fn send_order(&self, side: OrderSide, price: f64, size: f64) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn send_order(
+        &self,
+        side: OrderSide,
+        price: f64,
+        size: f64,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let mut order_request = OrderRequest {
             exchange: self.exchange.clone(),
             market: self.market.clone(),
