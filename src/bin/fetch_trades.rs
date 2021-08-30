@@ -26,8 +26,9 @@ struct TradeHistory {
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
-    let market = "FTT/USD";
-    let exchange = "FTX";
+    let args: Vec<String> = std::env::args().collect();
+    let market = args.get(1).expect("missing market").to_owned();
+    let exchange = args.get(2).expect("missing exchange").to_owned();
     let url = format!(
         "https://ftx.com/api/markets/{market}/trades",
         market = market

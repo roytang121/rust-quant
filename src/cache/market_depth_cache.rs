@@ -1,5 +1,6 @@
-use crate::model::constants::Exchanges;
+use crate::model::constants::{Exchanges, PublishChannel};
 use crate::model::market_data_model::MarketDepth;
+use crate::pubsub::SubscribeMarketDepthRequest;
 use dashmap::DashMap;
 use redis::Msg;
 use std::cell::Cell;
@@ -25,14 +26,24 @@ impl MarketDepthCache {
         }
     }
 
-    pub async fn subscribe(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn subscribe(
+        &mut self,
+        market_depth_requests: &[SubscribeMarketDepthRequest],
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let redis = redis::Client::open("redis://localhost:10400").unwrap();
         let conn = redis.get_async_connection().await.unwrap();
         let mut pubsub = conn.into_pubsub();
-        pubsub.subscribe("marketdepth:FTX:ETH-PERP").await.unwrap();
-        pubsub.subscribe("marketdepth:FTX:BTC-PERP").await.unwrap();
-        pubsub.subscribe("marketdepth:FTX:BTC/USD").await.unwrap();
-        pubsub.subscribe("marketdepth:FTX:ETH/USD").await.unwrap();
+        for request in market_depth_requests {
+            pubsub
+                .subscribe(format!(
+                    "{}:{}:{}",
+                    PublishChannel::MarketDepth.to_string(),
+                    request.exchange.to_string(),
+                    request.market
+                ))
+                .await
+                .unwrap();
+        }
         // let mut stream = Box::pin(pubsub.on_message().throttle(Duration::from_millis(50)));
         let mut stream = pubsub.on_message();
         let tx_clone = self.tx.clone();

@@ -88,7 +88,7 @@ impl OrderGateway for FtxOrderGateway {
         }
     }
 
-    async fn subscribe(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+    async fn subscribe(&self) -> Result<(), Box<dyn std::error::Error>> {
         let (mut write, mut read) = connect_ftx_authed().await?;
         let (mut tx, mut rx) = tokio::sync::mpsc::channel(32);
         let init_message = json!({

@@ -1,23 +1,43 @@
+use crate::lambda::lambda_instance::LambdaStrategyParamsRequest;
+use crate::lambda::strategy::swap_mm::params::SwapMMStrategyParams;
+use crate::lambda::{LambdaInstance, LambdaInstanceConfig};
 use crate::model::market_data_model::MarketDepth;
 use crate::model::{Instrument, OrderSide};
 use dashmap::DashMap;
 use std::sync::Arc;
 use std::time::Duration;
+use tokio::sync::RwLock;
 
 pub struct Lambda {
     market_depth: Arc<DashMap<String, MarketDepth>>,
     depth_instrument: Instrument,
+    lambda_instance: Arc<RwLock<LambdaInstance>>,
+    strategy_params_sender: tokio::sync::mpsc::Sender<LambdaStrategyParamsRequest>,
 }
+
+type StrategyParams = SwapMMStrategyParams;
 
 impl Lambda {
     pub fn new(
         market_depth: Arc<DashMap<String, MarketDepth>>,
         depth_instrument: Instrument,
+        lambda_instance: LambdaInstance,
     ) -> Self {
+        let strategy_params_sender = lambda_instance.strategy_params_sender.clone();
         Lambda {
             market_depth,
             depth_instrument,
+            lambda_instance: Arc::new(RwLock::new(lambda_instance)),
+            strategy_params_sender,
         }
+    }
+
+    async fn get_strategy_params(&self) -> Result<StrategyParams, Box<dyn std::error::Error>> {
+        let (params_request, mut result) = LambdaInstance::request_strategy_params();
+        self.strategy_params_sender.send(params_request).await;
+        let params = result.await?;
+        let transformed = serde_json::from_value::<StrategyParams>(params)?;
+        Ok(transformed)
     }
 
     async fn update(&self) -> Result<(), Box<dyn std::error::Error>> {
@@ -26,14 +46,48 @@ impl Lambda {
                 "lambda update open_orders: {:?}",
                 self.depth_instrument.get_order_orders(true)
             );
-            tokio::time::sleep(Duration::from_millis(500)).await;
+
+            if let Some(md) = self.market_depth.get(self.depth_instrument.market.as_str()) {
+                let targe_size = 31.0f32;
+
+                let mut sum_bid_size = 0.0f32;
+                let mut target_bid_price = 0.0f32;
+                let mut target_bid_level = 0;
+                for level in md.bids.iter() {
+                    sum_bid_size += level.size;
+                    if sum_bid_size >= targe_size {
+                        target_bid_price = level.price;
+                        break;
+                    }
+                    target_bid_level += 1;
+                }
+
+                let mut sum_ask_size = 0.0f32;
+                let mut target_ask_price = 0.0f32;
+                let mut target_ask_level = 0;
+                for level in md.asks.iter() {
+                    sum_ask_size += level.size;
+                    if sum_ask_size >= targe_size {
+                        target_ask_price = level.price;
+                        break;
+                    }
+                    target_ask_level += 1;
+                }
+
+                log::info!("bid[{}]: {}", target_bid_level, target_bid_price);
+                log::info!("ask[{}]: {}", target_ask_level, target_ask_price);
+
+                let params = self.get_strategy_params().await?;
+                log::info!("s_params: {:?}", params);
+            }
+            tokio::time::sleep(Duration::from_millis(50)).await;
         }
     }
 
     async fn add_order(&self) -> Result<(), Box<dyn std::error::Error>> {
         let mut counter = 0;
         loop {
-            if counter <= 1000 {
+            if counter <= 3000 {
                 counter += 1;
                 let open_orders = self.depth_instrument.get_order_orders(true);
                 if open_orders.is_empty() {
@@ -61,6 +115,7 @@ impl Lambda {
     }
 
     pub async fn subscribe(&self) -> Result<(), Box<dyn std::error::Error>> {
+        let mut lambda_instance = self.lambda_instance.write().await;
         tokio::select! {
             Err(err) = self.update() => {
                 log::error!("lambda update panic: {}", err)
@@ -70,6 +125,9 @@ impl Lambda {
             }
             Err(err) = self.cancel_orders() => {
                 log::error!("lambda cancel_orders panic: {}", err)
+            }
+            Err(err) = lambda_instance.subscribe_strategy_params() => {
+                log::error!("lambda_instance subscribe_strategy_params panic: {}", err)
             }
         }
         Ok(())

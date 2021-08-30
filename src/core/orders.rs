@@ -16,7 +16,7 @@ use uuid::Uuid;
 #[async_trait]
 pub trait OrderGateway {
     fn new() -> Self;
-    async fn subscribe(&mut self) -> Result<(), Box<dyn std::error::Error>>;
+    async fn subscribe(&self) -> Result<(), Box<dyn std::error::Error>>;
 }
 
 pub struct OrderUpdateService {
@@ -30,7 +30,7 @@ impl OrderUpdateService {
         }
     }
 
-    pub async fn subscribe(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn subscribe(&self) -> Result<(), Box<dyn std::error::Error>> {
         let mut sub =
             RedisBackedMessageBus::subscribe(vec![PublishChannel::OrderUpdate.as_ref()], self);
         sub.await

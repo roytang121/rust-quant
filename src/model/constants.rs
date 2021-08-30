@@ -1,8 +1,11 @@
 use serde::{Deserialize, Serialize};
 use std::convert::AsRef;
 use strum_macros::AsRefStr;
+pub use strum_macros::EnumString;
 
-#[derive(Serialize, Deserialize, Debug, strum_macros::Display, Clone, PartialOrd, PartialEq)]
+#[derive(
+    Serialize, Deserialize, Debug, EnumString, strum_macros::Display, Clone, PartialOrd, PartialEq,
+)]
 pub enum Exchanges {
     FTX,
     BINANCE,
@@ -10,7 +13,15 @@ pub enum Exchanges {
 }
 
 #[derive(
-    Serialize, Deserialize, Debug, strum_macros::Display, AsRefStr, Clone, PartialOrd, PartialEq,
+    Serialize,
+    Deserialize,
+    Debug,
+    strum_macros::Display,
+    EnumString,
+    AsRefStr,
+    Clone,
+    PartialOrd,
+    PartialEq,
 )]
 pub enum PublishChannel {
     OrderUpdate,

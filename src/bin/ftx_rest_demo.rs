@@ -27,6 +27,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 type_: OrderType::Limit,
                 ioc: false,
                 post_only: true,
+                client_id: None,
             };
             let json = client.place_order(order_request).await.unwrap();
             log::info!("{}", json);
