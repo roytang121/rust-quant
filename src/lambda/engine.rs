@@ -15,9 +15,9 @@ use tokio::sync::RwLock;
 
 pub async fn engine(lambda_instance: LambdaInstance) {
     log::info!(
-        "Starting engine. Lambda Instance Config {:?}, {:?}",
+        "Starting engine. Lambda Instance Config {:?}",
         &lambda_instance.lambda_params,
-        &lambda_instance.strategy_params
+        // lambda_instance.strategy_params.read().await.get()
     );
     // market depth request
     let mut market_depth_cache = MarketDepthCache::new();
@@ -70,7 +70,9 @@ pub async fn engine(lambda_instance: LambdaInstance) {
         Err(err) = order_update_handle => {
             log::error!("order_update_service panic: {}", err);
         },
-        _ = lambda => {},
+        result = lambda => {
+            log::error!("lambda completed: {:?}", result)
+        },
         _ = message_bus.publish_poll() => {},
     }
 }

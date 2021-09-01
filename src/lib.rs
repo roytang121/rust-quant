@@ -1,3 +1,8 @@
+#[macro_use]
+extern crate rocket;
+#[macro_use]
+extern crate log;
+
 pub mod cache;
 pub mod conn;
 pub mod core;

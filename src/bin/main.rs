@@ -76,16 +76,6 @@ async fn main() -> Result<()> {
             counter.value += 1;
         }
     });
-    let mut planner = periodic::Planner::new();
-    planner.add(
-        move || {
-            let mut counter_ref = counter_ref.lock().unwrap();
-            println!("rates: {}/sec", counter_ref.value);
-            counter_ref.value = 0;
-        },
-        periodic::Every::new(Duration::from_secs(1)),
-    );
-
     loop {
         tx.send(1).await.unwrap();
         let msg = socket.read_message().expect("Error reading message");

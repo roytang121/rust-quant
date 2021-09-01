@@ -2,6 +2,6 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, Default)]
 pub struct SwapMMStrategyParams {
-    depth_symbol: String,
-    hedge_symbol: String,
+    pub(crate) depth_symbol: String,
+    pub(crate) hedge_symbol: String,
 }

@@ -1,4 +1,4 @@
-use crate::lambda::lambda_instance::LambdaStrategyParamsRequest;
+use crate::lambda::lambda_instance::{LambdaStrategyParamsRequest, LambdaStrategyParamsRequestSender};
 use crate::lambda::strategy::swap_mm::params::SwapMMStrategyParams;
 use crate::lambda::{LambdaInstance, LambdaInstanceConfig};
 use crate::model::market_data_model::MarketDepth;
@@ -12,7 +12,7 @@ pub struct Lambda {
     market_depth: Arc<DashMap<String, MarketDepth>>,
     depth_instrument: Instrument,
     lambda_instance: Arc<RwLock<LambdaInstance>>,
-    strategy_params_sender: tokio::sync::mpsc::Sender<LambdaStrategyParamsRequest>,
+    strategy_params_request_sender: LambdaStrategyParamsRequestSender,
 }
 
 type StrategyParams = SwapMMStrategyParams;
@@ -23,18 +23,18 @@ impl Lambda {
         depth_instrument: Instrument,
         lambda_instance: LambdaInstance,
     ) -> Self {
-        let strategy_params_sender = lambda_instance.strategy_params_sender.clone();
+        let strategy_params_sender = lambda_instance.strategy_params_request_sender.clone();
         Lambda {
             market_depth,
             depth_instrument,
             lambda_instance: Arc::new(RwLock::new(lambda_instance)),
-            strategy_params_sender,
+            strategy_params_request_sender: strategy_params_sender,
         }
     }
 
     async fn get_strategy_params(&self) -> Result<StrategyParams, Box<dyn std::error::Error>> {
-        let (params_request, mut result) = LambdaInstance::request_strategy_params();
-        self.strategy_params_sender.send(params_request).await;
+        let (params_request, mut result) = LambdaInstance::request_strategy_params_snapshot();
+        self.strategy_params_request_sender.send(params_request).await;
         let params = result.await?;
         let transformed = serde_json::from_value::<StrategyParams>(params)?;
         Ok(transformed)
@@ -85,7 +85,7 @@ impl Lambda {
     }
 
     async fn add_order(&self) -> Result<(), Box<dyn std::error::Error>> {
-        let mut counter = 0;
+        let mut counter = 20000;
         loop {
             if counter <= 3000 {
                 counter += 1;
@@ -117,17 +117,17 @@ impl Lambda {
     pub async fn subscribe(&self) -> Result<(), Box<dyn std::error::Error>> {
         let mut lambda_instance = self.lambda_instance.write().await;
         tokio::select! {
-            Err(err) = self.update() => {
-                log::error!("lambda update panic: {}", err)
+            result = self.update() => {
+                panic!("lambda update panic: {:?}", result)
             }
-            Err(err) = self.add_order() => {
-                log::error!("lambda add_order panic: {}", err)
+            result = self.add_order() => {
+                panic!("lambda add_order panic: {:?}", result)
             }
-            Err(err) = self.cancel_orders() => {
-                log::error!("lambda cancel_orders panic: {}", err)
+            result = self.cancel_orders() => {
+                panic!("lambda cancel_orders panic: {:?}", result)
             }
-            Err(err) = lambda_instance.subscribe_strategy_params() => {
-                log::error!("lambda_instance subscribe_strategy_params panic: {}", err)
+            result = lambda_instance.subscribe() => {
+                panic!("lambda_instance subscribe_strategy_params panic: {:?}", result)
             }
         }
         Ok(())
