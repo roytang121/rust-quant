@@ -1,12 +1,13 @@
 use crate::model::constants::Exchanges;
 use serde::{Deserialize, Serialize};
 use std::hash::{Hash, Hasher};
+pub use std::str::FromStr;
 
 // PriceLevel
 #[derive(Serialize, Deserialize, Debug)]
 pub struct PriceLevel {
-    pub price: f32,
-    pub size: f32,
+    pub price: f64,
+    pub size: f64,
 }
 impl ToString for PriceLevel {
     fn to_string(&self) -> String {

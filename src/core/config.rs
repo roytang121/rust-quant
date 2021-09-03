@@ -16,7 +16,7 @@ impl ConfigStore {
         let environment = std::env::var("ENV").expect("ENV is not defined");
         let mut cfg: Config =
             confy::load_path(format!("./{}.config.toml", environment.to_lowercase())).unwrap();
-        log::info!("Loaded config: {:#?}", cfg);
+        // log::info!("Loaded config: {:#?}", cfg);
         ConfigStore { cfg }
     }
     pub fn load() -> Config {

@@ -1,7 +1,6 @@
 use futures_util::stream::SplitStream;
 use futures_util::StreamExt;
 use serde_json::{json, Value};
-use simd_json::Error;
 use std::collections::HashSet;
 use strum_macros;
 use tokio::net::TcpStream;
@@ -74,7 +73,7 @@ pub async fn subscribe_message(
         let msg = msg?;
         let time_start_ns = chrono::Utc::now().timestamp_nanos();
         let parse_result =
-            simd_json::from_slice::<WebSocketResponse<OrderBookData>>(&mut *msg.into_data());
+            serde_json::from_slice::<WebSocketResponse<OrderBookData>>(&mut *msg.into_data());
         match parse_result {
             Ok(response) => {
                 log::debug!("{:?}", response);

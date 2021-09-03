@@ -6,14 +6,17 @@ use crate::model::{
 use crate::pubsub::simple_message_bus::RedisBackedMessageBus;
 use crate::pubsub::PublishPayload;
 use serde::{Deserialize, Serialize};
+pub use std::str::FromStr;
 
 #[derive(Debug)]
 pub struct Instrument {
     pub exchange: Exchanges,
     pub market: String,
-    order_cache: OrderUpdateCache,
-    message_bus_sender: tokio::sync::mpsc::Sender<PublishPayload>,
+    pub(crate) order_cache: OrderUpdateCache,
+    pub(crate) message_bus_sender: tokio::sync::mpsc::Sender<PublishPayload>,
 }
+
+pub struct InstrumentToken(pub Exchanges, pub String);
 
 impl Instrument {
     pub fn new(
@@ -28,6 +31,14 @@ impl Instrument {
             order_cache,
             message_bus_sender,
         }
+    }
+
+    pub fn instrument_token(token: &str) -> InstrumentToken {
+        let split: Vec<&str> = token.split(".").collect();
+        let market = split.get(0).expect("Invalid token.").to_owned();
+        let exchange = split.get(1).expect("Invalid token.").to_owned();
+        let exchange = Exchanges::from_str(exchange).expect("Unknown exchange");
+        InstrumentToken(exchange, market.to_string())
     }
 
     pub fn get_order_orders(&self, include_pending_cancels: bool) -> Vec<OrderUpdate> {

@@ -46,8 +46,8 @@ pub struct WebSocketResponse<DataType> {
 #[derive(Deserialize, Serialize, Debug)]
 pub struct OrderBookData {
     pub action: WebSocketResponseType,
-    pub bids: Vec<[f32; 2]>,
-    pub asks: Vec<[f32; 2]>,
+    pub bids: Vec<[f64; 2]>,
+    pub asks: Vec<[f64; 2]>,
     pub checksum: u64,
     pub time: f64,
 }

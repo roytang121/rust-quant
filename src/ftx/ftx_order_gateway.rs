@@ -41,7 +41,7 @@ impl FtxOrderGateway {
         let mut redis = RedisBackedMessageBus::new().await?;
         while let Some(msg) = stream.next().await {
             let msg = msg?;
-            let response = simd_json::from_str::<WebSocketResponse<FtxOrderData>>(
+            let response = serde_json::from_str::<WebSocketResponse<FtxOrderData>>(
                 msg.to_string().as_mut_str(),
             )?;
             match response.channel {
@@ -145,7 +145,7 @@ impl FtxOrderRequestService {
 #[async_trait]
 impl MessageConsumer for FtxOrderRequestService {
     async fn consume(&self, msg: &mut str) -> Result<(), Box<dyn std::error::Error>> {
-        match simd_json::from_str::<OrderRequest>(msg) {
+        match serde_json::from_str::<OrderRequest>(msg) {
             Ok(order_request) => {
                 if order_request.exchange == Exchanges::FTX {
                     log::info!("FtxOrderRequestService: {:?}", order_request);
@@ -190,7 +190,7 @@ impl FtxCancelOrderService {
 #[async_trait]
 impl MessageConsumer for FtxCancelOrderService {
     async fn consume(&self, msg: &mut str) -> Result<(), Box<dyn Error>> {
-        match simd_json::from_str::<CancelOrderRequest>(msg) {
+        match serde_json::from_str::<CancelOrderRequest>(msg) {
             Ok(order_request) => {
                 if order_request.exchange == Exchanges::FTX {
                     log::info!("FtxCancelOrderService: {:?}", order_request);

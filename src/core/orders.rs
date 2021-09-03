@@ -40,7 +40,7 @@ impl OrderUpdateService {
 #[async_trait]
 impl MessageConsumer for OrderUpdateService {
     async fn consume(&self, msg: &mut str) -> Result<(), Box<dyn std::error::Error>> {
-        let order_update = simd_json::from_str::<OrderUpdate>(msg)?;
+        let mut order_update = serde_json::from_str::<OrderUpdate>(msg)?;
         log::info!("{:?}", order_update);
         if order_update.has_cache_key() {
             let cache_key = order_update.cache_key();
@@ -49,6 +49,22 @@ impl MessageConsumer for OrderUpdateService {
                     self.cache.remove(&cache_key);
                 }
                 _ => {
+                    if self.cache.contains_key(cache_key.as_str()) {
+                        let cached_order= self.cache.get(cache_key.as_str()).unwrap();
+                        match cached_order.status {
+                            OrderStatus::PendingCancel => {
+                                match order_update.status {
+                                    OrderStatus::New | OrderStatus::Open => {
+                                        order_update.status = OrderStatus::PendingCancel;
+                                        self.cache.insert(cache_key, order_update);
+                                        return Ok(())
+                                    }
+                                    _ => {}
+                                }
+                            }
+                            _ => {}
+                        }
+                    }
                     self.cache.insert(cache_key, order_update);
                 }
             }

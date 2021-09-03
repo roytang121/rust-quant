@@ -21,7 +21,7 @@ pub async fn subscribe_message(
     let mut conn = redis_client.get_async_connection().await?;
     while let Some(msg) = stream.next().await {
         let msg = msg?;
-        let msg_json = simd_json::from_str::<Value>(msg.to_string().as_mut_str())?;
+        let msg_json = serde_json::from_str::<Value>(msg.to_string().as_mut_str())?;
         log::debug!("{}", msg.to_string());
         if msg_json["data"].is_object() && msg_json["data"]["time"].is_f64() {
             if let Some(time_ms) = msg_json["data"]["time"].as_f64() {

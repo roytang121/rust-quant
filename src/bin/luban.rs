@@ -7,7 +7,7 @@ use std::time::Duration;
 
 use rust_quant::ftx::market_depth::market_depth;
 use rust_quant::ftx::ticker::ticker;
-use rust_quant::lambda::LambdaInstance;
+use rust_quant::lambda::{LambdaInstance, LambdaInstanceConfig};
 use rust_quant::model::constants::Exchanges;
 use rust_quant::pubsub::SubscribeMarketDepthRequest;
 
@@ -19,7 +19,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .get(1)
         .expect("Missing parameter: instance")
         .to_string();
-    let lambda_instance: LambdaInstance = LambdaInstance::new(instance_name.as_str());
-    rust_quant::lambda::engine(lambda_instance).await;
+    let config = LambdaInstanceConfig::load(instance_name.as_str());
+    rust_quant::lambda::engine(config).await;
     Ok(())
 }
