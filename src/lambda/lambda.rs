@@ -61,7 +61,7 @@ impl <'r> Lambda<'r> {
     }
 
     async fn get_strategy_params(&self) -> Result<StrategyParams, Box<dyn std::error::Error>> {
-        let params = LambdaInstance::request_strategy_params_snapshot(&self.strategy_params_request_sender).await?;
+        let params = LambdaStrategyParamsRequest::request_strategy_params_snapshot(&self.strategy_params_request_sender).await?;
         let transformed = serde_json::from_value::<StrategyParams>(params).unwrap();
         Ok(transformed)
     }
@@ -79,7 +79,7 @@ impl <'r> Lambda<'r> {
     async fn publish_state(&self) -> Result<(), SendError<LambdaStrategyParamsRequest>> {
         let strategy_state = self.strategy_state.read().await;
         let copy_state = strategy_state.deref().clone();
-        LambdaInstance::request_set_state(&self.strategy_params_request_sender, StrategyStateEnum::SwapMM(copy_state)).await
+        LambdaStrategyParamsRequest::request_set_state(&self.strategy_params_request_sender, StrategyStateEnum::SwapMM(copy_state)).await
     }
 
     async fn update(&self) -> Result<(), Box<dyn std::error::Error>> {

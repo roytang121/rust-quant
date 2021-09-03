@@ -1,0 +1,16 @@
+name = 'swap-mm-ethusd'
+
+[lambda_params]
+book = 'SWAP-MM-ETH'
+market_depths = [
+    'ETH-PERP.FTX',
+    'ETH/USD.FTX',
+]
+
+[init_params]
+depth_symbol = 'ETH-PERP.FTX'
+hedge_symbol = 'ETH/USD.FTX'
+
+[strategy_params]
+depth_symbol = 'ETH-PERP.FTX'
+hedge_symbol = 'ETH/USD.FTX'
