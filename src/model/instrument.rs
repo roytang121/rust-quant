@@ -1,28 +1,29 @@
-use crate::core::orders::OrderUpdateService;
+use crate::cache::OrderUpdateCache;
 use crate::model::constants::Exchanges;
 use crate::model::{
-    OrderRequest, OrderSide, OrderStatus, OrderType, OrderUpdate, OrderUpdateCache,
+    OrderRequest, OrderSide, OrderStatus, OrderType, OrderUpdate, OrderUpdateCacheInner,
 };
 use crate::pubsub::simple_message_bus::RedisBackedMessageBus;
 use crate::pubsub::PublishPayload;
 use serde::{Deserialize, Serialize};
 pub use std::str::FromStr;
+use std::sync::Arc;
 
 #[derive(Debug)]
-pub struct Instrument {
+pub struct Instrument<'r> {
     pub exchange: Exchanges,
     pub market: String,
-    pub(crate) order_cache: OrderUpdateCache,
+    pub(crate) order_cache: &'r OrderUpdateCache,
     pub(crate) message_bus_sender: tokio::sync::mpsc::Sender<PublishPayload>,
 }
 
 pub struct InstrumentToken(pub Exchanges, pub String);
 
-impl Instrument {
+impl<'r> Instrument<'r> {
     pub fn new(
         exchange: Exchanges,
         market: &str,
-        order_cache: OrderUpdateCache,
+        order_cache: &'r OrderUpdateCache,
         message_bus_sender: tokio::sync::mpsc::Sender<PublishPayload>,
     ) -> Self {
         Instrument {
@@ -43,7 +44,7 @@ impl Instrument {
 
     pub fn get_order_orders(&self, include_pending_cancels: bool) -> Vec<OrderUpdate> {
         let mut open_orders: Vec<OrderUpdate> = vec![];
-        for ou in self.order_cache.iter() {
+        for ou in self.order_cache.cache.iter() {
             if ou.exchange == self.exchange && ou.market == self.market {
                 match ou.status {
                     OrderStatus::New | OrderStatus::Open | OrderStatus::PendingNew => {
@@ -79,10 +80,16 @@ impl Instrument {
             client_id: None,
         };
         order_request.generate_client_id();
-        OrderRequest::send_order(&self.order_cache, &self.message_bus_sender, order_request).await
+        OrderRequest::send_order(
+            &self.order_cache.cache,
+            &self.message_bus_sender,
+            order_request,
+        )
+        .await
     }
 
     pub async fn cancel_order(&self, client_id: &str) -> Result<(), Box<dyn std::error::Error>> {
-        OrderRequest::cancel_order(&self.order_cache, &self.message_bus_sender, client_id).await
+        OrderRequest::cancel_order(&self.order_cache.cache, &self.message_bus_sender, client_id)
+            .await
     }
 }

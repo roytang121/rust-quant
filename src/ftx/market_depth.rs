@@ -149,7 +149,7 @@ pub async fn market_depth(market: &str) -> Result<(), Box<dyn std::error::Error>
     msg_tx.send(Message::Text(init_message.to_string())).await;
 
     // polling message bus publisher
-    let message_bus_poll = message_bus.publish_poll();
+    let message_bus_poll = message_bus.subscribe();
 
     tokio::select! {
         Err(err) = subscribe_message(&mut sub, &message_bus_sender) => {

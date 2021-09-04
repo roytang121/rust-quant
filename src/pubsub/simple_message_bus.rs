@@ -26,7 +26,7 @@ impl RedisBackedMessageBus {
         let conn = redis_client.get_async_connection().await?;
         let (tx, rx) = tokio::sync::mpsc::channel::<PublishPayload>(100);
         let instance = RedisBackedMessageBus {
-            conn: conn,
+            conn,
             publish_tx: tx,
             publish_rx: rx,
         };
@@ -65,7 +65,7 @@ impl RedisBackedMessageBus {
         sender.send(payload).await
     }
 
-    pub async fn subscribe<T>(
+    pub async fn subscribe_channels<T>(
         channels: Vec<&str>,
         consumer: &T,
     ) -> Result<(), Box<dyn std::error::Error>>
@@ -88,7 +88,7 @@ impl RedisBackedMessageBus {
         Ok(())
     }
 
-    pub async fn publish_poll(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn subscribe(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         let mut rx = &mut self.publish_rx;
         while let Some(msg) = rx.recv().await {
             redis::cmd("PUBLISH")

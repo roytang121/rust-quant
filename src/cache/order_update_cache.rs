@@ -1,44 +1,41 @@
-use crate::model::constants::{Exchanges, PublishChannel};
-use crate::model::{
-    CancelOrderRequest, Instrument, OrderRequest, OrderStatus, OrderUpdate, OrderUpdateCache,
-};
-use crate::pubsub::simple_message_bus::{MessageConsumer, RedisBackedMessageBus};
-use crate::pubsub::PublishPayload;
+use std::error::Error;
+use std::sync::Arc;
+
 use async_trait::async_trait;
 use dashmap::DashMap;
 use futures_util::StreamExt;
 use redis::Msg;
-use std::error::Error;
-use std::sync::Arc;
 use tokio::sync::mpsc::error::SendError;
 use uuid::Uuid;
 
-#[async_trait]
-pub trait OrderGateway {
-    fn new() -> Self;
-    async fn subscribe(&self) -> Result<(), Box<dyn std::error::Error>>;
+use crate::model::{
+    CancelOrderRequest, Instrument, OrderRequest, OrderStatus, OrderUpdate, OrderUpdateCacheInner,
+};
+use crate::model::constants::{Exchanges, PublishChannel};
+use crate::pubsub::PublishPayload;
+use crate::pubsub::simple_message_bus::{MessageConsumer, RedisBackedMessageBus};
+
+type Cache = DashMap<String, OrderUpdate>;
+
+#[derive(Debug)]
+pub struct OrderUpdateCache {
+    pub cache: Cache,
 }
 
-pub struct OrderUpdateService {
-    pub cache: OrderUpdateCache,
-}
-
-impl OrderUpdateService {
-    pub fn new() -> OrderUpdateService {
-        OrderUpdateService {
-            cache: Arc::new(DashMap::new()),
+impl OrderUpdateCache {
+    pub fn new() -> OrderUpdateCache {
+        OrderUpdateCache {
+            cache: DashMap::new(),
         }
     }
 
     pub async fn subscribe(&self) -> Result<(), Box<dyn std::error::Error>> {
-        let mut sub =
-            RedisBackedMessageBus::subscribe(vec![PublishChannel::OrderUpdate.as_ref()], self);
-        sub.await
+        RedisBackedMessageBus::subscribe_channels(vec![PublishChannel::OrderUpdate.as_ref()], self).await
     }
 }
 
 #[async_trait]
-impl MessageConsumer for OrderUpdateService {
+impl MessageConsumer for OrderUpdateCache {
     async fn consume(&self, msg: &mut str) -> Result<(), Box<dyn std::error::Error>> {
         let mut order_update = serde_json::from_str::<OrderUpdate>(msg)?;
         log::info!("{:?}", order_update);
@@ -80,7 +77,7 @@ impl MessageConsumer for OrderUpdateService {
 
 impl OrderRequest {
     pub async fn send_order(
-        order_update_cache: &OrderUpdateCache,
+        order_update_cache: &OrderUpdateCacheInner,
         message_bus_sender: &tokio::sync::mpsc::Sender<PublishPayload>,
         order_request: OrderRequest,
     ) -> Result<(), Box<dyn std::error::Error>> {
@@ -110,7 +107,7 @@ impl OrderRequest {
         Ok(())
     }
     pub async fn cancel_order(
-        order_update_cache: &OrderUpdateCache,
+        order_update_cache: &OrderUpdateCacheInner,
         message_bus_sender: &tokio::sync::mpsc::Sender<PublishPayload>,
         client_id: &str,
     ) -> Result<(), Box<dyn std::error::Error>> {

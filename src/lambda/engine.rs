@@ -1,18 +1,31 @@
-use crate::cache::MarketDepthCache;
-use crate::core::config::ConfigStore;
-use crate::core::orders::{OrderGateway, OrderUpdateService};
-use crate::ftx::ftx_order_gateway::FtxOrderGateway;
-use crate::lambda::lambda::Lambda;
-use crate::lambda::{LambdaInstance, LambdaInstanceConfig, LambdaState};
-use crate::model::constants::Exchanges;
-use crate::model::market_data_model::MarketDepth;
-use crate::model::Instrument;
-use crate::pubsub::simple_message_bus::RedisBackedMessageBus;
-use crate::pubsub::SubscribeMarketDepthRequest;
 use std::error::Error;
 use std::sync::Arc;
 use std::time::Duration;
+
 use tokio::sync::RwLock;
+
+use crate::cache::MarketDepthCache;
+use crate::cache::OrderUpdateCache;
+use crate::core::config::ConfigStore;
+use crate::core::OrderGateway;
+use crate::ftx::ftx_order_gateway::FtxOrderGateway;
+use crate::lambda::{LambdaInstance, LambdaInstanceConfig, LambdaState};
+use crate::lambda::lambda::Lambda;
+use crate::model::constants::Exchanges;
+use crate::model::Instrument;
+use crate::model::market_data_model::MarketDepth;
+use crate::pubsub::simple_message_bus::RedisBackedMessageBus;
+use crate::pubsub::SubscribeMarketDepthRequest;
+
+pub async fn thread_order_update_cache(
+    order_update_cache: Arc<OrderUpdateCache>,
+) -> anyhow::Result<()> {
+    tokio::spawn(async move {
+        order_update_cache.subscribe().await;
+    })
+    .await;
+    Ok(())
+}
 
 pub async fn thread_market_depth(
     market_depth_cache: Arc<MarketDepthCache>,
@@ -35,14 +48,10 @@ pub async fn engine(instance_config: LambdaInstanceConfig) {
         .collect();
 
     // order gateway
-    let mut order_gateway = FtxOrderGateway::new();
+    let order_gateway = FtxOrderGateway::new();
 
     // order update cache
-    let mut order_update_service = OrderUpdateService::new();
-    let ous_cache_ref = order_update_service.cache.clone();
-    let order_update_handle = tokio::spawn(async move {
-        order_update_service.subscribe().await;
-    });
+    let order_update_cache = Arc::new(OrderUpdateCache::new());
 
     // message bus
     let mut message_bus = RedisBackedMessageBus::new().await.unwrap();
@@ -52,7 +61,7 @@ pub async fn engine(instance_config: LambdaInstanceConfig) {
     let lambda = Lambda::new(
         instance_config,
         &market_depth_cache,
-        ous_cache_ref,
+        &order_update_cache,
         message_bus_sender,
     );
 
@@ -63,12 +72,12 @@ pub async fn engine(instance_config: LambdaInstanceConfig) {
         Err(err) = order_gateway.subscribe() => {
             log::error!("order_gateway panic: {}", err);
         },
-        Err(err) = order_update_handle => {
+        Err(err) = thread_order_update_cache(order_update_cache.clone()) => {
             log::error!("order_update_service panic: {}", err);
         },
         result = lambda.subscribe() => {
             log::error!("lambda completed: {:?}", result)
         },
-        _ = message_bus.publish_poll() => {},
+        _ = message_bus.subscribe() => {},
     }
 }

@@ -5,17 +5,17 @@ use crate::pubsub::SubscribeMarketDepthRequest;
 use dashmap::mapref::one::Ref;
 use dashmap::DashMap;
 use redis::Msg;
+use rocket::http::ext::IntoOwned;
+use std::borrow::Cow;
 use std::cell::Cell;
 use std::collections::hash_map::RandomState;
 use std::collections::HashMap;
 use std::error::Error;
+use std::ops::Deref;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::RwLock;
 use tokio_stream::StreamExt;
-use std::borrow::Cow;
-use rocket::http::ext::IntoOwned;
-use std::ops::Deref;
 
 type Cache = DashMap<String, MarketDepth>;
 
@@ -37,7 +37,7 @@ impl MarketDepthCache {
 
     /// get a clone of MarketDepth and immediate releasing the ref
     /// it is costly in terms of memory allocation to clone a MarketDepth but yields a better performance for not locking a reference to Map
-    pub fn get(&self, key: &str) -> Option<MarketDepth> {
+    pub fn get_clone(&self, key: &str) -> Option<MarketDepth> {
         return match self.cache.get(key) {
             None => None,
             Some(md) => {
@@ -53,7 +53,10 @@ impl MarketDepthCache {
         };
     }
 
-    pub async fn subscribe(&self, market_depth_requests: &[SubscribeMarketDepthRequest]) -> Result<(), Box<dyn Error>> {
+    pub async fn subscribe(
+        &self,
+        market_depth_requests: &[SubscribeMarketDepthRequest],
+    ) -> Result<(), Box<dyn Error>> {
         let channels: Vec<String> = market_depth_requests
             .iter()
             .map(|request| {
@@ -68,13 +71,14 @@ impl MarketDepthCache {
 
         let channels = channels.as_slice().iter().map(AsRef::as_ref).collect();
 
-        RedisBackedMessageBus::subscribe(channels, self).await
+        RedisBackedMessageBus::subscribe_channels(channels, self).await
     }
 }
 
 #[async_trait::async_trait]
 impl MessageConsumer for MarketDepthCache {
     async fn consume(&self, msg: &mut str) -> Result<(), Box<dyn Error>> {
+        info!("consume md in thread_id: {:?}", std::thread::current().id());
         match serde_json::from_str::<MarketDepth>(msg) {
             Ok(md) => {
                 self.cache.insert(md.market.to_string(), md);

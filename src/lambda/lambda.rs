@@ -1,18 +1,23 @@
-use crate::lambda::lambda_instance::{LambdaStrategyParamsRequest, LambdaStrategyParamsRequestSender};
-use crate::lambda::strategy::swap_mm::params::{SwapMMStrategyParams, SwapMMStrategyStateStruct, StrategyStateEnum, SwapMMInitParams};
+use crate::cache::MarketDepthCache;
+use crate::lambda::lambda_instance::{
+    LambdaStrategyParamsRequest, LambdaStrategyParamsRequestSender,
+};
+use crate::lambda::strategy::swap_mm::params::{
+    StrategyStateEnum, SwapMMInitParams, SwapMMStrategyParams, SwapMMStrategyStateStruct,
+};
 use crate::lambda::{LambdaInstance, LambdaInstanceConfig};
 use crate::model::market_data_model::MarketDepth;
-use crate::model::{Instrument, OrderSide, OrderUpdateCache, InstrumentToken};
+use crate::model::{Instrument, InstrumentToken, OrderSide, OrderUpdateCacheInner};
+use crate::pubsub::PublishPayload;
 use dashmap::DashMap;
+use rocket::tokio::sync::mpsc::error::SendError;
+use serde_json::Value;
+use std::borrow::{Borrow, BorrowMut};
+use std::ops::Deref;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
-use serde_json::Value;
-use std::borrow::{BorrowMut, Borrow};
-use std::ops::Deref;
-use crate::cache::MarketDepthCache;
-use rocket::tokio::sync::mpsc::error::SendError;
-use crate::pubsub::PublishPayload;
+use crate::cache::OrderUpdateCache;
 
 type InitParams = SwapMMInitParams;
 type StrategyParams = SwapMMStrategyParams;
@@ -20,30 +25,32 @@ type StrategyState = SwapMMStrategyStateStruct;
 
 pub struct Lambda<'r> {
     market_depth: &'r MarketDepthCache,
-    depth_instrument: Instrument,
+    depth_instrument: Instrument<'r>,
     lambda_instance: LambdaInstance,
     strategy_state: Arc<RwLock<StrategyState>>,
     strategy_params_request_sender: LambdaStrategyParamsRequestSender,
 }
 
-impl <'r> Lambda<'r> {
+impl<'r> Lambda<'r> {
     pub fn new(
         instance_config: LambdaInstanceConfig,
         market_depth: &'r MarketDepthCache,
-        order_cache: OrderUpdateCache,
+        order_cache: &'r OrderUpdateCache,
         message_bus_sender: tokio::sync::mpsc::Sender<PublishPayload>,
     ) -> Self {
         let lambda_instance = LambdaInstance::new(instance_config);
         let strategy_params_sender = lambda_instance.strategy_params_request_sender.clone();
-        let init_params = serde_json::from_value::<InitParams>(lambda_instance.init_params.clone()).unwrap();
-        let depth_instrument_token = Instrument::instrument_token(init_params.depth_symbol.as_str());
+        let init_params =
+            serde_json::from_value::<InitParams>(lambda_instance.init_params.clone()).unwrap();
+        let depth_instrument_token =
+            Instrument::instrument_token(init_params.depth_symbol.as_str());
         let depth_instrument = match depth_instrument_token {
             InstrumentToken(exchange, market) => Instrument {
                 exchange,
                 market,
-                order_cache: order_cache.clone(),
+                order_cache,
                 message_bus_sender,
-            }
+            },
         };
         Lambda {
             market_depth,
@@ -61,7 +68,10 @@ impl <'r> Lambda<'r> {
     }
 
     async fn get_strategy_params(&self) -> Result<StrategyParams, Box<dyn std::error::Error>> {
-        let params = LambdaStrategyParamsRequest::request_strategy_params_snapshot(&self.strategy_params_request_sender).await?;
+        let params = LambdaStrategyParamsRequest::request_strategy_params_snapshot(
+            &self.strategy_params_request_sender,
+        )
+        .await?;
         let transformed = serde_json::from_value::<StrategyParams>(params).unwrap();
         Ok(transformed)
     }
@@ -79,12 +89,17 @@ impl <'r> Lambda<'r> {
     async fn publish_state(&self) -> Result<(), SendError<LambdaStrategyParamsRequest>> {
         let strategy_state = self.strategy_state.read().await;
         let copy_state = strategy_state.deref().clone();
-        LambdaStrategyParamsRequest::request_set_state(&self.strategy_params_request_sender, StrategyStateEnum::SwapMM(copy_state)).await
+        LambdaStrategyParamsRequest::request_set_state(
+            &self.strategy_params_request_sender,
+            StrategyStateEnum::SwapMM(copy_state),
+        )
+        .await
     }
 
     async fn update(&self) -> Result<(), Box<dyn std::error::Error>> {
         loop {
-            if let Some(md) = self.market_depth.get(self.depth_instrument.market.as_str()) {
+            // info!("lambda update in thread_id: {:?}", std::thread::current().id());
+            if let Some(md) = self.market_depth.get_clone(self.depth_instrument.market.as_str()) {
                 let targe_size = 31.0f64;
 
                 let mut sum_bid_size = 0.0f64;
@@ -114,16 +129,13 @@ impl <'r> Lambda<'r> {
                 log::info!("bid[{}]: {}", target_bid_level, target_bid_price);
                 log::info!("ask[{}]: {}", target_ask_level, target_ask_price);
 
-                // LambdaInstance::request_set_state(&self.strategy_params_request_sender, SwapMMStrategyState::BidPx.to_string(), Value::from(target_bid_price)).await;
-                // LambdaInstance::request_set_state(&self.strategy_params_request_sender, SwapMMStrategyState::AskPx.to_string(), Value::from(target_ask_price)).await;
                 let mut strategy_state = self.write_strategy_state().await?;
                 strategy_state.bid_px = Some(target_bid_price);
                 strategy_state.ask_px = Some(target_ask_price);
                 drop(strategy_state);
                 self.publish_state().await;
-
             }
-            tokio::time::sleep(Duration::from_millis(50)).await;
+            tokio::time::sleep(Duration::from_millis(10)).await;
         }
     }
 

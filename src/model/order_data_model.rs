@@ -6,7 +6,7 @@ use std::sync::Arc;
 use uuid::Uuid;
 
 pub type OrderCacheKey = String;
-pub type OrderUpdateCache = Arc<DashMap<OrderCacheKey, OrderUpdate>>;
+pub type OrderUpdateCacheInner = DashMap<OrderCacheKey, OrderUpdate>;
 
 #[derive(Deserialize, Serialize, Debug, strum_macros::Display, Clone)]
 pub enum OrderType {

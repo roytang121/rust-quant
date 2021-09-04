@@ -1,4 +1,4 @@
-use crate::core::orders::OrderGateway;
+use crate::core::OrderGateway;
 use crate::ftx::types::{FtxOrderData, WebSocketResponse, WebSocketResponseType};
 use crate::ftx::utils::{connect_ftx, connect_ftx_authed, ping_pong};
 use crate::ftx::FtxRestClient;
@@ -127,7 +127,7 @@ impl FtxOrderRequestService {
         FtxOrderRequestService { client }
     }
     pub async fn subscribe(&self) -> Result<(), Box<dyn std::error::Error>> {
-        RedisBackedMessageBus::subscribe(vec![PublishChannel::OrderRequest.as_ref()], self).await?;
+        RedisBackedMessageBus::subscribe_channels(vec![PublishChannel::OrderRequest.as_ref()], self).await?;
         Ok(())
     }
     async fn accept_order_request(&self, order_request: OrderRequest) {
@@ -169,7 +169,7 @@ impl FtxCancelOrderService {
         FtxCancelOrderService { client }
     }
     pub async fn subscribe(&self) -> Result<(), Box<dyn std::error::Error>> {
-        RedisBackedMessageBus::subscribe(vec![PublishChannel::CancelOrder.as_ref()], self).await?;
+        RedisBackedMessageBus::subscribe_channels(vec![PublishChannel::CancelOrder.as_ref()], self).await?;
         Ok(())
     }
     async fn accept_cancel_order_request(&self, cancel_order_request: CancelOrderRequest) {
