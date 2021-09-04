@@ -7,17 +7,17 @@ use crate::lambda::strategy::swap_mm::params::{
 };
 use crate::lambda::{GenericLambdaInstanceConfig, LambdaInstance, LambdaInstanceConfig};
 
-use crate::model::{Instrument, InstrumentToken, OrderSide, OrderFill};
+use crate::model::{Instrument, InstrumentToken, OrderFill, OrderSide};
 use crate::pubsub::PublishPayload;
 
 use rocket::tokio::sync::mpsc::error::SendError;
 
 use crate::cache::OrderUpdateCache;
+use crate::pubsub::simple_message_bus::TypedMessageConsumer;
 use std::ops::Deref;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
-use crate::pubsub::simple_message_bus::{MessageConsumer, TypedMessageConsumer};
 
 type InitParams = SwapMMInitParams;
 type StrategyParams = SwapMMStrategyParams;
@@ -206,7 +206,7 @@ impl Hedger<'_> {
 }
 #[async_trait::async_trait]
 impl<'r> TypedMessageConsumer<OrderFill> for Hedger<'r> {
-    async fn consume(&self, msg: OrderFill) -> anyhow::Result<()> {
+    async fn consume(&self, _msg: OrderFill) -> anyhow::Result<()> {
         Ok(())
     }
 }

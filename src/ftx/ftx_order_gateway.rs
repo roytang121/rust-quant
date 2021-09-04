@@ -6,7 +6,7 @@ use crate::model::constants::{Exchanges, PublishChannel};
 use crate::model::{CancelOrderRequest, OrderRequest};
 use crate::pubsub::simple_message_bus::{MessageConsumer, RedisBackedMessageBus};
 use async_trait::async_trait;
-use dashmap::DashMap;
+
 use futures_util::stream::SplitStream;
 use futures_util::{SinkExt, StreamExt};
 use redis::Commands;
@@ -20,7 +20,6 @@ use tokio::sync::RwLock;
 use tokio_stream::wrappers::ReceiverStream;
 use tokio_tungstenite::tungstenite::Message;
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
-use anyhow::Context;
 
 pub struct FtxOrderGateway {}
 

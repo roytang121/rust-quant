@@ -1,5 +1,3 @@
-use std::error::Error;
-
 use tokio::net::TcpStream;
 
 use tokio_tungstenite::{connect_async, MaybeTlsStream, WebSocketStream};

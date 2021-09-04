@@ -204,16 +204,16 @@ impl<SP: Clone + Serialize + DeserializeOwned + Debug> LambdaInstance<SP> {
     pub async fn subscribe_rest(&self) -> anyhow::Result<()> {
         let sender = self.strategy_params_request_sender.clone();
         tokio::spawn(async move {
-            let param_service =
-                LambdaStrategyParamService::new(sender);
+            let param_service = LambdaStrategyParamService::new(sender);
             param_service.subscribe().await;
-        }).await;
+        })
+        .await;
         Err(anyhow!("subscribe_rest uncaught"))
     }
 
     pub async fn subscribe(&self) -> Result<(), Box<dyn std::error::Error>> {
         tokio::select! {
-            Err(err) = self.subscribe_strategy_params_requests() => {},
+            Err(_err) = self.subscribe_strategy_params_requests() => {},
             result = self.subscribe_rest() => {
                 panic!("subscribe_rest error: {:?}", result)
             }

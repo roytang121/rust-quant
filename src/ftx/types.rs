@@ -1,5 +1,5 @@
 use crate::model::constants::Exchanges;
-use crate::model::{OrderRequest, OrderSide, OrderStatus, OrderType, OrderUpdate, OrderFill};
+use crate::model::{OrderFill, OrderRequest, OrderSide, OrderStatus, OrderType, OrderUpdate};
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, Debug)]

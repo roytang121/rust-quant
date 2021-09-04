@@ -1,4 +1,3 @@
-use std::error::Error;
 use std::time::Duration;
 
 use futures_util::stream::{SplitSink, SplitStream};

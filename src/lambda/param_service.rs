@@ -5,7 +5,7 @@ use crate::lambda::LambdaState;
 
 use rocket::data::ToByteUnit;
 
-use rocket::http::{Method, Status};
+use rocket::http::Method;
 use rocket::response::content::Json;
 use rocket::route::{Handler, Outcome};
 
