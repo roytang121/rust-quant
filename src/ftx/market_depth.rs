@@ -1,8 +1,8 @@
 use futures_util::stream::SplitStream;
 use futures_util::StreamExt;
-use serde_json::{json, Value};
+use serde_json::json;
 use std::collections::HashSet;
-use strum_macros;
+
 use tokio::net::TcpStream;
 use tokio_stream::wrappers::ReceiverStream;
 use tokio_tungstenite::tungstenite::Message;
@@ -13,8 +13,7 @@ use crate::ftx::utils::{connect_ftx, ping_pong};
 use crate::model::constants::{Exchanges, PublishChannel};
 use crate::model::market_data_model::{MarketDepth, PriceLevel};
 use crate::pubsub::simple_message_bus::RedisBackedMessageBus;
-use crate::pubsub::{MessageBus, MessageBusUtils, PublishPayload};
-use serde::Serialize;
+use crate::pubsub::{MessageBusUtils, PublishPayload};
 
 pub fn process_orderbook_update(
     update: &OrderBookData,
@@ -128,7 +127,7 @@ pub async fn subscribe_message(
 
 pub async fn market_depth(market: &str) -> Result<(), Box<dyn std::error::Error>> {
     let (write, mut sub) = connect_ftx().await?;
-    let (msg_tx, mut rx) = tokio::sync::mpsc::channel(32);
+    let (msg_tx, rx) = tokio::sync::mpsc::channel(32);
     let forward_write_to_ws = ReceiverStream::new(rx)
         .map(|x| {
             log::info!("send {}", x);

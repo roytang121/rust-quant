@@ -1,19 +1,12 @@
-use std::error::Error;
-use std::sync::Arc;
-
 use async_trait::async_trait;
 use dashmap::DashMap;
-use futures_util::StreamExt;
-use redis::Msg;
-use tokio::sync::mpsc::error::SendError;
-use uuid::Uuid;
 
-use crate::model::{
-    CancelOrderRequest, Instrument, OrderRequest, OrderStatus, OrderUpdate, OrderUpdateCacheInner,
-};
 use crate::model::constants::{Exchanges, PublishChannel};
-use crate::pubsub::PublishPayload;
+use crate::model::{
+    CancelOrderRequest, OrderRequest, OrderStatus, OrderUpdate, OrderUpdateCacheInner,
+};
 use crate::pubsub::simple_message_bus::{MessageConsumer, RedisBackedMessageBus};
+use crate::pubsub::PublishPayload;
 
 type Cache = DashMap<String, OrderUpdate>;
 
@@ -30,7 +23,8 @@ impl OrderUpdateCache {
     }
 
     pub async fn subscribe(&self) -> Result<(), Box<dyn std::error::Error>> {
-        RedisBackedMessageBus::subscribe_channels(vec![PublishChannel::OrderUpdate.as_ref()], self).await
+        RedisBackedMessageBus::subscribe_channels(vec![PublishChannel::OrderUpdate.as_ref()], self)
+            .await
     }
 }
 
@@ -47,18 +41,16 @@ impl MessageConsumer for OrderUpdateCache {
                 }
                 _ => {
                     if self.cache.contains_key(cache_key.as_str()) {
-                        let cached_order= self.cache.get(cache_key.as_str()).unwrap();
+                        let cached_order = self.cache.get(cache_key.as_str()).unwrap();
                         match cached_order.status {
-                            OrderStatus::PendingCancel => {
-                                match order_update.status {
-                                    OrderStatus::New | OrderStatus::Open => {
-                                        order_update.status = OrderStatus::PendingCancel;
-                                        self.cache.insert(cache_key, order_update);
-                                        return Ok(())
-                                    }
-                                    _ => {}
+                            OrderStatus::PendingCancel => match order_update.status {
+                                OrderStatus::New | OrderStatus::Open => {
+                                    order_update.status = OrderStatus::PendingCancel;
+                                    self.cache.insert(cache_key, order_update);
+                                    return Ok(());
                                 }
-                            }
+                                _ => {}
+                            },
                             _ => {}
                         }
                     }

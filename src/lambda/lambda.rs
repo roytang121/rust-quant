@@ -6,18 +6,17 @@ use crate::lambda::strategy::swap_mm::params::{
     StrategyStateEnum, SwapMMInitParams, SwapMMStrategyParams, SwapMMStrategyStateStruct,
 };
 use crate::lambda::{LambdaInstance, LambdaInstanceConfig};
-use crate::model::market_data_model::MarketDepth;
-use crate::model::{Instrument, InstrumentToken, OrderSide, OrderUpdateCacheInner};
+
+use crate::model::{Instrument, InstrumentToken, OrderSide};
 use crate::pubsub::PublishPayload;
-use dashmap::DashMap;
+
 use rocket::tokio::sync::mpsc::error::SendError;
-use serde_json::Value;
-use std::borrow::{Borrow, BorrowMut};
+
+use crate::cache::OrderUpdateCache;
 use std::ops::Deref;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
-use crate::cache::OrderUpdateCache;
 
 type InitParams = SwapMMInitParams;
 type StrategyParams = SwapMMStrategyParams;
@@ -99,7 +98,10 @@ impl<'r> Lambda<'r> {
     async fn update(&self) -> Result<(), Box<dyn std::error::Error>> {
         loop {
             // info!("lambda update in thread_id: {:?}", std::thread::current().id());
-            if let Some(md) = self.market_depth.get_clone(self.depth_instrument.market.as_str()) {
+            if let Some(md) = self
+                .market_depth
+                .get_clone(self.depth_instrument.market.as_str())
+            {
                 let targe_size = 31.0f64;
 
                 let mut sum_bid_size = 0.0f64;
@@ -184,6 +186,5 @@ impl<'r> Lambda<'r> {
                 panic!("lambda_instance subscribe_strategy_params panic: {:?}", result)
             }
         }
-        Ok(())
     }
 }

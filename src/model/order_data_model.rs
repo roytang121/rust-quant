@@ -1,8 +1,8 @@
 use crate::model::constants::Exchanges;
-use crate::model::instrument::Instrument;
+
 use dashmap::DashMap;
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
+
 use uuid::Uuid;
 
 pub type OrderCacheKey = String;
@@ -28,6 +28,7 @@ pub enum OrderSide {
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
+#[allow(non_camel_case_types, non_snake_case)]
 pub struct OrderUpdate {
     pub exchange: Exchanges,
     pub id: i64,

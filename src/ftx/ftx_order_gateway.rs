@@ -1,23 +1,23 @@
 use crate::core::OrderGateway;
 use crate::ftx::types::{FtxOrderData, WebSocketResponse, WebSocketResponseType};
-use crate::ftx::utils::{connect_ftx, connect_ftx_authed, ping_pong};
+use crate::ftx::utils::{connect_ftx_authed, ping_pong};
 use crate::ftx::FtxRestClient;
 use crate::model::constants::{Exchanges, PublishChannel};
-use crate::model::{CancelOrderRequest, OrderRequest, OrderUpdate};
+use crate::model::{CancelOrderRequest, OrderRequest};
 use crate::pubsub::simple_message_bus::{MessageConsumer, RedisBackedMessageBus};
 use async_trait::async_trait;
 use dashmap::DashMap;
 use futures_util::stream::SplitStream;
 use futures_util::{SinkExt, StreamExt};
 use redis::Commands;
-use serde_json::{json, Value};
-use std::collections::HashMap;
+use serde_json::json;
+
 use std::error::Error;
 use std::sync::Arc;
-use std::time::Duration;
+
 use thiserror::Error;
 use tokio::net::TcpStream;
-use tokio::sync::mpsc::Sender;
+
 use tokio::sync::RwLock;
 use tokio_stream::wrappers::ReceiverStream;
 use tokio_tungstenite::tungstenite::Message;
@@ -90,7 +90,7 @@ impl OrderGateway for FtxOrderGateway {
 
     async fn subscribe(&self) -> Result<(), Box<dyn std::error::Error>> {
         let (mut write, mut read) = connect_ftx_authed().await?;
-        let (mut tx, mut rx) = tokio::sync::mpsc::channel(32);
+        let (tx, rx) = tokio::sync::mpsc::channel(32);
         let init_message = json!({
             "op": "subscribe",
             "channel": "orders",
@@ -127,7 +127,11 @@ impl FtxOrderRequestService {
         FtxOrderRequestService { client }
     }
     pub async fn subscribe(&self) -> Result<(), Box<dyn std::error::Error>> {
-        RedisBackedMessageBus::subscribe_channels(vec![PublishChannel::OrderRequest.as_ref()], self).await?;
+        RedisBackedMessageBus::subscribe_channels(
+            vec![PublishChannel::OrderRequest.as_ref()],
+            self,
+        )
+        .await?;
         Ok(())
     }
     async fn accept_order_request(&self, order_request: OrderRequest) {
@@ -136,8 +140,8 @@ impl FtxOrderRequestService {
         tokio::spawn(async move {
             let client = client_ref.read().await;
             match client.place_order(order_request).await {
-                Ok(response) => {}
-                Err(err) => {}
+                Ok(_response) => {}
+                Err(_err) => {}
             }
         });
     }
@@ -169,7 +173,8 @@ impl FtxCancelOrderService {
         FtxCancelOrderService { client }
     }
     pub async fn subscribe(&self) -> Result<(), Box<dyn std::error::Error>> {
-        RedisBackedMessageBus::subscribe_channels(vec![PublishChannel::CancelOrder.as_ref()], self).await?;
+        RedisBackedMessageBus::subscribe_channels(vec![PublishChannel::CancelOrder.as_ref()], self)
+            .await?;
         Ok(())
     }
     async fn accept_cancel_order_request(&self, cancel_order_request: CancelOrderRequest) {
@@ -181,8 +186,8 @@ impl FtxCancelOrderService {
                 .cancel_order_cid(cancel_order_request.client_id.as_str())
                 .await
             {
-                Ok(response) => {}
-                Err(err) => {}
+                Ok(_response) => {}
+                Err(_err) => {}
             }
         });
     }

@@ -2,7 +2,7 @@
 extern crate log;
 
 use std::error::Error;
-use std::future::Future;
+
 use std::time::Duration;
 
 use rust_quant::ftx::market_depth::market_depth;

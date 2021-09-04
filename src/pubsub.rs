@@ -1,6 +1,5 @@
 use crate::model::constants::Exchanges;
 use async_trait::async_trait;
-use std::future::Future;
 
 pub mod simple_message_bus;
 pub use std::str::FromStr;
@@ -50,5 +49,4 @@ impl SubscribeMarketDepthRequest {
     }
 }
 
-use serde::Serialize;
 use tokio::sync::mpsc::error::SendError;

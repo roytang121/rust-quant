@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use std::convert::AsRef;
+
 use strum_macros::AsRefStr;
 pub use strum_macros::EnumString;
 

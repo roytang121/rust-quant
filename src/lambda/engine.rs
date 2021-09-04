@@ -1,19 +1,13 @@
-use std::error::Error;
 use std::sync::Arc;
-use std::time::Duration;
-
-use tokio::sync::RwLock;
 
 use crate::cache::MarketDepthCache;
 use crate::cache::OrderUpdateCache;
-use crate::core::config::ConfigStore;
+
 use crate::core::OrderGateway;
 use crate::ftx::ftx_order_gateway::FtxOrderGateway;
-use crate::lambda::{LambdaInstance, LambdaInstanceConfig, LambdaState};
 use crate::lambda::lambda::Lambda;
-use crate::model::constants::Exchanges;
-use crate::model::Instrument;
-use crate::model::market_data_model::MarketDepth;
+use crate::lambda::{LambdaInstance, LambdaInstanceConfig, LambdaState};
+
 use crate::pubsub::simple_message_bus::RedisBackedMessageBus;
 use crate::pubsub::SubscribeMarketDepthRequest;
 

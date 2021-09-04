@@ -1,20 +1,14 @@
-use crate::model::constants::{Exchanges, PublishChannel};
+use crate::model::constants::PublishChannel;
 use crate::model::market_data_model::MarketDepth;
 use crate::pubsub::simple_message_bus::{MessageConsumer, RedisBackedMessageBus};
 use crate::pubsub::SubscribeMarketDepthRequest;
-use dashmap::mapref::one::Ref;
+
 use dashmap::DashMap;
-use redis::Msg;
-use rocket::http::ext::IntoOwned;
-use std::borrow::Cow;
-use std::cell::Cell;
-use std::collections::hash_map::RandomState;
-use std::collections::HashMap;
+
 use std::error::Error;
-use std::ops::Deref;
+
 use std::sync::Arc;
-use std::time::Duration;
-use tokio::sync::RwLock;
+
 use tokio_stream::StreamExt;
 
 type Cache = DashMap<String, MarketDepth>;

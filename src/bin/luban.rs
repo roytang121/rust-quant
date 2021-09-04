@@ -2,14 +2,8 @@
 extern crate log;
 
 use std::error::Error;
-use std::future::Future;
-use std::time::Duration;
 
-use rust_quant::ftx::market_depth::market_depth;
-use rust_quant::ftx::ticker::ticker;
-use rust_quant::lambda::{LambdaInstance, LambdaInstanceConfig};
-use rust_quant::model::constants::Exchanges;
-use rust_quant::pubsub::SubscribeMarketDepthRequest;
+use rust_quant::lambda::LambdaInstanceConfig;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {

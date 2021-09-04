@@ -1,17 +1,15 @@
 use std::error::Error;
-use std::time::Duration;
 
-use futures_util::stream::{SplitSink, SplitStream};
+use futures_util::stream::SplitStream;
 use futures_util::{AsyncWrite, SinkExt, StreamExt, TryFutureExt};
 use redis::aio::Connection;
 use serde_json::{json, Value};
 use tokio::net::TcpStream;
-use tokio::sync::mpsc::Sender;
+
 use tokio_stream::wrappers::ReceiverStream;
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
 use tungstenite::Message;
 
-use crate::conn::websocket::connect_wss_async;
 use crate::ftx::utils::{connect_ftx, ping_pong};
 
 pub async fn subscribe_message(

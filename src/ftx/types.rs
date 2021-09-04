@@ -1,9 +1,9 @@
 use crate::model::constants::Exchanges;
 use crate::model::{OrderRequest, OrderSide, OrderStatus, OrderType, OrderUpdate};
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
 
 #[derive(Deserialize, Serialize, Debug)]
+#[allow(non_camel_case_types)]
 pub enum WebSocketResponseType {
     error,
     subscribed,
@@ -15,17 +15,20 @@ pub enum WebSocketResponseType {
 }
 
 #[derive(Deserialize, Serialize, Debug)]
+#[allow(non_camel_case_types)]
 pub enum FtxOrderType {
     limit,
     market,
 }
 #[derive(Deserialize, Serialize, Debug)]
+#[allow(non_camel_case_types)]
 pub enum FtxOrderStatus {
     new,
     open,
     closed,
 }
 #[derive(Deserialize, Serialize, Debug)]
+#[allow(non_camel_case_types)]
 pub enum FtxOrderSide {
     buy,
     sell,
@@ -53,6 +56,7 @@ pub struct OrderBookData {
 }
 
 #[derive(Deserialize, Serialize, Debug)]
+#[allow(non_camel_case_types, non_snake_case)]
 pub struct FtxOrderData {
     pub id: i64,
     pub clientId: Option<String>,
@@ -105,6 +109,7 @@ impl FtxOrderData {
 }
 
 #[derive(Deserialize, Serialize, Debug)]
+#[allow(non_camel_case_types, non_snake_case)]
 pub struct FtxPlaceOrder {
     pub market: String,
     pub side: FtxOrderSide,

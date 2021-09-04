@@ -1,17 +1,16 @@
-use crate::lambda::lambda_instance::{LambdaStrategyParamsRequestSender, LambdaStrategyParamsRequest};
-use crate::lambda::{LambdaInstance, LambdaState};
-use rocket::config::{Shutdown, Sig};
+use crate::lambda::lambda_instance::{
+    LambdaStrategyParamsRequest, LambdaStrategyParamsRequestSender,
+};
+use crate::lambda::LambdaState;
+
 use rocket::data::ToByteUnit;
-use rocket::http::uri::fmt::RouteUriBuilder;
-use rocket::http::{MediaType, Method};
+
+use rocket::http::Method;
 use rocket::response::content::Json;
-use rocket::route::{Handler, Outcome, RouteUri};
-use rocket::tokio::sync::oneshot::error::RecvError;
-use rocket::{Data, Request, Route};
+use rocket::route::{Handler, Outcome};
+
+use rocket::{Data, Request};
 use serde_json::Value;
-use std::any::Any;
-use std::ops::Deref;
-use crate::lambda::strategy::swap_mm::params::StrategyStateEnum;
 
 #[derive(Clone)]
 pub struct LambdaStrategyParamService {
@@ -134,8 +133,15 @@ impl LambdaStrategyParamService {
         entries
     }
 
-    async fn get_param_entries<'r>(&self, request: &'r Request<'_>, data: Data<'r>) -> Outcome<'r> {
-        let snapshot = LambdaStrategyParamsRequest::request_strategy_params_snapshot(&self.strategy_param_request_sender).await;
+    async fn get_param_entries<'r>(
+        &self,
+        request: &'r Request<'_>,
+        _data: Data<'r>,
+    ) -> Outcome<'r> {
+        let snapshot = LambdaStrategyParamsRequest::request_strategy_params_snapshot(
+            &self.strategy_param_request_sender,
+        )
+        .await;
         match snapshot {
             Ok(value) => {
                 let entries = Self::value_to_entries(&value);
@@ -147,16 +153,23 @@ impl LambdaStrategyParamService {
         }
     }
 
-    async fn update_param_entries<'r>(&self, request: &'r Request<'_>, data: Data<'r>) -> Outcome<'r> {
+    async fn update_param_entries<'r>(
+        &self,
+        request: &'r Request<'_>,
+        data: Data<'r>,
+    ) -> Outcome<'r> {
         let body = Self::from_data(data).await.unwrap();
         let entries = serde_json::from_value::<Vec<KeyValueEntry>>(body).unwrap();
-        let snapshot = LambdaStrategyParamsRequest::request_strategy_params_snapshot(&self.strategy_param_request_sender).await;
+        let snapshot = LambdaStrategyParamsRequest::request_strategy_params_snapshot(
+            &self.strategy_param_request_sender,
+        )
+        .await;
         match snapshot {
             Ok(mut snapshot) => {
                 let mut snapshot = snapshot.as_object_mut().unwrap().clone();
                 for entry in entries.into_iter() {
                     if snapshot.contains_key(entry.key.as_str()) {
-                        if let Some(current_value) = snapshot.get(entry.key.as_str()) {
+                        if let Some(_current_value) = snapshot.get(entry.key.as_str()) {
                             // TODO: reject if value type does not match
                         }
                         snapshot.insert(entry.key, entry.value);
@@ -164,17 +177,27 @@ impl LambdaStrategyParamService {
                 }
                 info!("{:?}", snapshot);
                 let snapshot = Value::from(snapshot);
-                LambdaStrategyParamsRequest::request_update_strategy_params(&self.strategy_param_request_sender, snapshot);
-                return Outcome::from(request, "Ok")
+                LambdaStrategyParamsRequest::request_update_strategy_params(
+                    &self.strategy_param_request_sender,
+                    snapshot,
+                );
+                return Outcome::from(request, "Ok");
             }
             Err(_) => {}
         }
         Outcome::from(request, "Error")
     }
 
-    async fn get_state_entries<'r>(&self, request: &'r Request<'_>, data: Data<'r>) -> Outcome<'r> {
-        let snapshot = LambdaStrategyParamsRequest::request_lambda_state_snapshot(&self.strategy_param_request_sender).await;
-        let mut json = String::from("");
+    async fn get_state_entries<'r>(
+        &self,
+        request: &'r Request<'_>,
+        _data: Data<'r>,
+    ) -> Outcome<'r> {
+        let snapshot = LambdaStrategyParamsRequest::request_lambda_state_snapshot(
+            &self.strategy_param_request_sender,
+        )
+        .await;
+        let _json = String::from("");
         match snapshot {
             Ok(value) => {
                 let json = value.to_string();
@@ -187,7 +210,11 @@ impl LambdaStrategyParamService {
         }
     }
 
-    async fn unsupported_route<'r>(&self, request: &'r Request<'_>, data: Data<'r>) -> Outcome<'r> {
+    async fn unsupported_route<'r>(
+        &self,
+        request: &'r Request<'_>,
+        _data: Data<'r>,
+    ) -> Outcome<'r> {
         Outcome::from(request, "Unsupported Route")
     }
 }

@@ -2,12 +2,11 @@ use crate::core::config::ConfigStore;
 use crate::ftx::types::FtxPlaceOrder;
 use crate::model::OrderRequest;
 use hmac::{Hmac, Mac, NewMac};
-use reqwest::header::{HeaderMap, HeaderValue, CONTENT_TYPE};
-use reqwest::{RequestBuilder, Response};
+use reqwest::header::{HeaderMap, CONTENT_TYPE};
+use reqwest::RequestBuilder;
 use sha2::Sha256;
-use std::collections::hash_map::RandomState;
+
 use std::collections::HashMap;
-use url::Url;
 
 pub struct FtxRestClient {
     base_url: String,

@@ -1,13 +1,10 @@
 #[cfg(test)]
 mod rest_tests {
     use crate::ftx::FtxRestClient;
-    use serde_json::Value;
-    use std::collections::hash_map::RandomState;
-    use std::collections::HashMap;
-    use std::error::Error;
-    use crate::model::{OrderRequest, OrderSide, OrderType};
-    use crate::model::constants::Exchanges;
+
     use crate::ftx::types::FtxPlaceOrder;
+    use crate::model::constants::Exchanges;
+    use crate::model::{OrderRequest, OrderSide, OrderType};
 
     #[tokio::test]
     async fn it_init() {
@@ -31,7 +28,7 @@ mod rest_tests {
             type_: OrderType::Limit,
             ioc: false,
             post_only: false,
-            client_id: None
+            client_id: None,
         };
         let ftx_request = FtxPlaceOrder::from_order_request(order_request);
         println!("{:?}", ftx_request);

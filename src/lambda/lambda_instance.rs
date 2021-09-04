@@ -1,17 +1,15 @@
 use crate::lambda::param_service::LambdaStrategyParamService;
-use crate::lambda::strategy::swap_mm::params::{StrategyStateEnum, SwapMMStrategyParams};
-use crate::lambda::LambdaStateCache;
+use crate::lambda::strategy::swap_mm::params::StrategyStateEnum;
+
 use confy::ConfyError;
 use rocket::tokio::sync::mpsc::error::SendError;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::borrow::{Borrow, BorrowMut};
-use std::cell::{Cell, RefCell};
-use std::collections::HashMap;
+use std::borrow::Borrow;
+use std::cell::RefCell;
+
 use std::ops::Deref;
-use std::sync::Arc;
-use std::time::Duration;
-use tokio::sync::oneshot::{Receiver, Sender};
+
 use tokio::sync::RwLock;
 
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]
@@ -30,7 +28,8 @@ pub struct LambdaInstanceConfig {
 
 impl LambdaInstanceConfig {
     pub fn load(instance_name: &str) -> Self {
-        let mut config: LambdaInstanceConfig = confy::load_path(format!("./instance/{}.toml", instance_name)).unwrap();
+        let mut config: LambdaInstanceConfig =
+            confy::load_path(format!("./instance/{}.toml", instance_name)).unwrap();
         if config.name != instance_name {
             panic!("config name != instance_name")
         }
@@ -159,7 +158,7 @@ impl LambdaInstance {
                     self.state_cache.replace(value);
                 }
                 RequestType::StateSnapshot { result } => {
-                    let mut snapshot = self.state_cache.borrow().deref().clone();
+                    let snapshot = self.state_cache.borrow().deref().clone();
                     result.send(snapshot);
                 }
             }
@@ -175,7 +174,7 @@ impl LambdaInstance {
 
     pub async fn subscribe(&self) -> Result<(), Box<dyn std::error::Error>> {
         tokio::select! {
-            Err(err) = self.subscribe_strategy_params() => {},
+            Err(_err) = self.subscribe_strategy_params() => {},
             result = self.subscribe_rest() => {
                 panic!("subscribe_rest error: {:?}", result)
             }

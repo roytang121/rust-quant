@@ -1,13 +1,10 @@
 use crate::cache::OrderUpdateCache;
 use crate::model::constants::Exchanges;
-use crate::model::{
-    OrderRequest, OrderSide, OrderStatus, OrderType, OrderUpdate, OrderUpdateCacheInner,
-};
-use crate::pubsub::simple_message_bus::RedisBackedMessageBus;
+use crate::model::{OrderRequest, OrderSide, OrderStatus, OrderType, OrderUpdate};
+
 use crate::pubsub::PublishPayload;
-use serde::{Deserialize, Serialize};
+
 pub use std::str::FromStr;
-use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct Instrument<'r> {

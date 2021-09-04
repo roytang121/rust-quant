@@ -1,5 +1,5 @@
-use std::sync::Arc;
 use dashmap::DashMap;
+use std::sync::Arc;
 use std::time::Duration;
 
 #[derive(Debug, Clone)]
@@ -16,12 +16,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let handle_2 = dash.clone();
 
     let loop_1 = tokio::spawn(async move {
-       loop {
-           let mut cur = handle_1.get_mut("cur").unwrap();
-           cur.0 = cur.0 + 1;
-           log::info!("set cur to {}", cur.0);
-           // tokio::time::sleep(Duration::from_millis(10)).await;
-       }
+        loop {
+            let mut cur = handle_1.get_mut("cur").unwrap();
+            cur.0 = cur.0 + 1;
+            log::info!("set cur to {}", cur.0);
+            // tokio::time::sleep(Duration::from_millis(10)).await;
+        }
     });
 
     let loop_2 = tokio::spawn(async move {

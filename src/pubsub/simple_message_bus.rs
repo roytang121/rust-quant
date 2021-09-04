@@ -2,14 +2,10 @@ use crate::core::config::ConfigStore;
 use crate::pubsub::{MessageBus, PublishPayload};
 use async_trait::async_trait;
 use futures_util::StreamExt;
-use redis::{AsyncCommands, Msg};
+use redis::Msg;
 use serde::Serialize;
-use std::borrow::BorrowMut;
-use std::cell::RefCell;
-use std::sync::{Arc, Mutex};
+
 use tokio::sync::mpsc::error::SendError;
-use tokio::sync::RwLock;
-use tokio_stream::wrappers::ReceiverStream;
 
 pub struct RedisBackedMessageBus {
     pub conn: redis::aio::Connection,
@@ -89,7 +85,7 @@ impl RedisBackedMessageBus {
     }
 
     pub async fn subscribe(&mut self) -> Result<(), Box<dyn std::error::Error>> {
-        let mut rx = &mut self.publish_rx;
+        let rx = &mut self.publish_rx;
         while let Some(msg) = rx.recv().await {
             redis::cmd("PUBLISH")
                 .arg(msg.channel.as_str())
