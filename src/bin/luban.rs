@@ -3,7 +3,7 @@ extern crate log;
 
 use std::error::Error;
 
-use rust_quant::lambda::LambdaInstanceConfig;
+use rust_quant::lambda::GenericLambdaInstanceConfig;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -13,7 +13,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .get(1)
         .expect("Missing parameter: instance")
         .to_string();
-    let config = LambdaInstanceConfig::load(instance_name.as_str());
+    let config = GenericLambdaInstanceConfig::load(instance_name.as_str());
     rust_quant::lambda::engine(config).await;
     Ok(())
 }

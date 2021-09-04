@@ -5,8 +5,6 @@ use crate::pubsub::SubscribeMarketDepthRequest;
 
 use dashmap::DashMap;
 
-use std::error::Error;
-
 use std::sync::Arc;
 
 use tokio_stream::StreamExt;
@@ -50,7 +48,7 @@ impl MarketDepthCache {
     pub async fn subscribe(
         &self,
         market_depth_requests: &[SubscribeMarketDepthRequest],
-    ) -> Result<(), Box<dyn Error>> {
+    ) -> anyhow::Result<()> {
         let channels: Vec<String> = market_depth_requests
             .iter()
             .map(|request| {
@@ -71,8 +69,7 @@ impl MarketDepthCache {
 
 #[async_trait::async_trait]
 impl MessageConsumer for MarketDepthCache {
-    async fn consume(&self, msg: &mut str) -> Result<(), Box<dyn Error>> {
-        info!("consume md in thread_id: {:?}", std::thread::current().id());
+    async fn consume(&self, msg: &mut str) -> anyhow::Result<()> {
         match serde_json::from_str::<MarketDepth>(msg) {
             Ok(md) => {
                 self.cache.insert(md.market.to_string(), md);

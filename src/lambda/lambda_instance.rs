@@ -4,13 +4,15 @@ use crate::lambda::strategy::swap_mm::params::StrategyStateEnum;
 use confy::ConfyError;
 use rocket::tokio::sync::mpsc::error::SendError;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use serde_json::{Value, Error};
 use std::borrow::Borrow;
 use std::cell::RefCell;
 
 use std::ops::Deref;
 
 use tokio::sync::RwLock;
+use serde::de::DeserializeOwned;
+use std::fmt::Debug;
 
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]
 pub struct LambdaParams {
@@ -19,16 +21,21 @@ pub struct LambdaParams {
 }
 
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]
-pub struct LambdaInstanceConfig {
+pub struct LambdaInstanceConfig<SP: Clone> {
     pub name: String,
     pub lambda_params: LambdaParams,
     pub init_params: Value,
-    pub strategy_params: Value,
+    pub strategy_params: SP,
+}
+#[derive(Debug, Serialize, Deserialize, Default, Clone)]
+pub struct GenericLambdaInstanceConfig {
+    pub name: String,
+    pub lambda_params: LambdaParams,
 }
 
-impl LambdaInstanceConfig {
+impl<SP: Clone + Serialize + DeserializeOwned + Default> LambdaInstanceConfig<SP> {
     pub fn load(instance_name: &str) -> Self {
-        let mut config: LambdaInstanceConfig =
+        let mut config: LambdaInstanceConfig<SP> =
             confy::load_path(format!("./instance/{}.toml", instance_name)).unwrap();
         if config.name != instance_name {
             panic!("config name != instance_name")
@@ -47,13 +54,25 @@ impl LambdaInstanceConfig {
     }
 }
 
+impl GenericLambdaInstanceConfig {
+    pub fn load(instance_name: &str) -> Self {
+        let mut config: GenericLambdaInstanceConfig =
+            confy::load_path(format!("./instance/{}.toml", instance_name)).unwrap();
+        if config.name != instance_name {
+            panic!("config name != instance_name")
+        }
+        config.name = instance_name.to_string();
+        config
+    }
+}
+
 pub type LambdaStrategyParamsRequestSender = tokio::sync::mpsc::Sender<LambdaStrategyParamsRequest>;
 
-pub struct LambdaInstance {
+pub struct LambdaInstance<SP: Clone> {
     pub name: String,
     pub lambda_params: LambdaParams,
     pub init_params: Value,
-    pub strategy_params: RefCell<Value>,
+    pub strategy_params: RefCell<SP>,
     pub strategy_params_request_sender: LambdaStrategyParamsRequestSender,
     strategy_params_receiver: RwLock<tokio::sync::mpsc::Receiver<LambdaStrategyParamsRequest>>,
     pub state_cache: RefCell<StrategyStateEnum>,
@@ -116,8 +135,8 @@ impl LambdaStrategyParamsRequest {
     }
 }
 
-impl LambdaInstance {
-    pub fn new(config: LambdaInstanceConfig) -> LambdaInstance {
+impl<SP: Clone + Serialize + DeserializeOwned + Debug> LambdaInstance<SP> {
+    pub fn new(config: LambdaInstanceConfig<SP>) -> LambdaInstance<SP> {
         let (tx, rx) = tokio::sync::mpsc::channel::<LambdaStrategyParamsRequest>(100);
         LambdaInstance {
             name: config.name.to_string(),
@@ -142,17 +161,31 @@ impl LambdaInstance {
         confy::store_path(format!("./instance/{}.toml", self.name), config)
     }
 
-    pub async fn subscribe_strategy_params(&self) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn get_strategy_params_clone(&self) -> SP {
+        self.strategy_params.clone().into_inner()
+    }
+
+    pub async fn subscribe_strategy_params_requests(&self) -> Result<(), Box<dyn std::error::Error>> {
         let mut strategy_params_receiver = self.strategy_params_receiver.write().await;
         while let Some(msg) = strategy_params_receiver.recv().await {
             match msg.0 {
                 RequestType::ParamSnapshot { result } => {
                     let value = self.strategy_params.borrow().deref().clone();
+                    let value = serde_json::to_value(value).unwrap();
                     result.send(value).unwrap();
                 }
                 RequestType::UpdateParam { value } => {
-                    self.strategy_params.replace(value);
-                    self.save_instance_config().await?;
+                    info!("UpdateParam: {}", value);
+                    match serde_json::from_value::<SP>(value) {
+                        Ok(value) => {
+                            self.strategy_params.replace(value);
+                            // TODO: parallel save instance config
+                            self.save_instance_config().await?;
+                        }
+                        Err(err) => {
+                            error!("Error UpdateParam: {}", err)
+                        }
+                    }
                 }
                 RequestType::SetState { value } => {
                     self.state_cache.replace(value);
@@ -174,7 +207,7 @@ impl LambdaInstance {
 
     pub async fn subscribe(&self) -> Result<(), Box<dyn std::error::Error>> {
         tokio::select! {
-            Err(_err) = self.subscribe_strategy_params() => {},
+            Err(_err) = self.subscribe_strategy_params_requests() => {},
             result = self.subscribe_rest() => {
                 panic!("subscribe_rest error: {:?}", result)
             }

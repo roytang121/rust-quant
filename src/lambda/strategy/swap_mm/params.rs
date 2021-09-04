@@ -8,7 +8,7 @@ pub struct SwapMMInitParams {
     pub hedge_symbol: String,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
 pub struct SwapMMStrategyParams {
     pub min_level: i32,
 }

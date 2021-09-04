@@ -148,7 +148,7 @@ impl FtxOrderRequestService {
 }
 #[async_trait]
 impl MessageConsumer for FtxOrderRequestService {
-    async fn consume(&self, msg: &mut str) -> Result<(), Box<dyn std::error::Error>> {
+    async fn consume(&self, msg: &mut str) -> anyhow::Result<()> {
         match serde_json::from_str::<OrderRequest>(msg) {
             Ok(order_request) => {
                 if order_request.exchange == Exchanges::FTX {
@@ -194,7 +194,7 @@ impl FtxCancelOrderService {
 }
 #[async_trait]
 impl MessageConsumer for FtxCancelOrderService {
-    async fn consume(&self, msg: &mut str) -> Result<(), Box<dyn Error>> {
+    async fn consume(&self, msg: &mut str) -> anyhow::Result<()> {
         match serde_json::from_str::<CancelOrderRequest>(msg) {
             Ok(order_request) => {
                 if order_request.exchange == Exchanges::FTX {

@@ -22,7 +22,7 @@ impl OrderUpdateCache {
         }
     }
 
-    pub async fn subscribe(&self) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn subscribe(&self) -> anyhow::Result<()> {
         RedisBackedMessageBus::subscribe_channels(vec![PublishChannel::OrderUpdate.as_ref()], self)
             .await
     }
@@ -30,7 +30,7 @@ impl OrderUpdateCache {
 
 #[async_trait]
 impl MessageConsumer for OrderUpdateCache {
-    async fn consume(&self, msg: &mut str) -> Result<(), Box<dyn std::error::Error>> {
+    async fn consume(&self, msg: &mut str) -> anyhow::Result<()> {
         let mut order_update = serde_json::from_str::<OrderUpdate>(msg)?;
         log::info!("{:?}", order_update);
         if order_update.has_cache_key() {

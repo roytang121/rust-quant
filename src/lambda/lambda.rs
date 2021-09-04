@@ -5,7 +5,7 @@ use crate::lambda::lambda_instance::{
 use crate::lambda::strategy::swap_mm::params::{
     StrategyStateEnum, SwapMMInitParams, SwapMMStrategyParams, SwapMMStrategyStateStruct,
 };
-use crate::lambda::{LambdaInstance, LambdaInstanceConfig};
+use crate::lambda::{GenericLambdaInstanceConfig, LambdaInstance, LambdaInstanceConfig};
 
 use crate::model::{Instrument, InstrumentToken, OrderSide};
 use crate::pubsub::PublishPayload;
@@ -25,19 +25,20 @@ type StrategyState = SwapMMStrategyStateStruct;
 pub struct Lambda<'r> {
     market_depth: &'r MarketDepthCache,
     depth_instrument: Instrument<'r>,
-    lambda_instance: LambdaInstance,
+    lambda_instance: LambdaInstance<StrategyParams>,
     strategy_state: Arc<RwLock<StrategyState>>,
     strategy_params_request_sender: LambdaStrategyParamsRequestSender,
 }
 
 impl<'r> Lambda<'r> {
     pub fn new(
-        instance_config: LambdaInstanceConfig,
+        instance_config: GenericLambdaInstanceConfig,
         market_depth: &'r MarketDepthCache,
         order_cache: &'r OrderUpdateCache,
         message_bus_sender: tokio::sync::mpsc::Sender<PublishPayload>,
     ) -> Self {
-        let lambda_instance = LambdaInstance::new(instance_config);
+        let lambda_instance =
+            LambdaInstance::new(LambdaInstanceConfig::load(instance_config.name.as_str()));
         let strategy_params_sender = lambda_instance.strategy_params_request_sender.clone();
         let init_params =
             serde_json::from_value::<InitParams>(lambda_instance.init_params.clone()).unwrap();
@@ -66,13 +67,14 @@ impl<'r> Lambda<'r> {
         }
     }
 
-    async fn get_strategy_params(&self) -> Result<StrategyParams, Box<dyn std::error::Error>> {
-        let params = LambdaStrategyParamsRequest::request_strategy_params_snapshot(
+    fn get_strategy_params(&self) -> Result<StrategyParams, Box<dyn std::error::Error>> {
+        /*let params = LambdaStrategyParamsRequest::request_strategy_params_snapshot(
             &self.strategy_params_request_sender,
         )
         .await?;
         let transformed = serde_json::from_value::<StrategyParams>(params).unwrap();
-        Ok(transformed)
+        Ok(transformed)*/
+        Ok(self.lambda_instance.get_strategy_params_clone())
     }
 
     async fn read_strategy_state(&self) -> anyhow::Result<RwLockReadGuard<'_, StrategyState>> {
@@ -171,6 +173,13 @@ impl<'r> Lambda<'r> {
             tokio::time::sleep(Duration::from_millis(10)).await;
         }
     }
+
+    // async fn thread_lambda_instance(lambda_instance: Arc<LambdaInstance<StrategyParams>>) -> anyhow::Result<()> {
+    //     tokio::spawn(async move {
+    //         lambda_instance.subscribe().await;
+    //     }).await;
+    //     Ok(())
+    // }
 
     pub async fn subscribe(&self) -> Result<(), Box<dyn std::error::Error>> {
         tokio::select! {

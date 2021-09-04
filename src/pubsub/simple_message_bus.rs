@@ -64,7 +64,7 @@ impl RedisBackedMessageBus {
     pub async fn subscribe_channels<T>(
         channels: Vec<&str>,
         consumer: &T,
-    ) -> Result<(), Box<dyn std::error::Error>>
+    ) -> anyhow::Result<()>
     where
         T: MessageConsumer,
     {
@@ -81,10 +81,10 @@ impl RedisBackedMessageBus {
             let mut payload = msg.get_payload::<String>()?;
             consumer.consume(payload.as_mut_str()).await?;
         }
-        Ok(())
+        Err(anyhow::Error::msg("subscribe_channels uncaught error"))
     }
 
-    pub async fn subscribe(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn subscribe(&mut self) -> anyhow::Result<()> {
         let rx = &mut self.publish_rx;
         while let Some(msg) = rx.recv().await {
             redis::cmd("PUBLISH")
@@ -93,11 +93,11 @@ impl RedisBackedMessageBus {
                 .query_async::<redis::aio::Connection, i32>(&mut self.conn)
                 .await?;
         }
-        Ok(())
+        Err(anyhow::Error::msg("simple_message_bus uncaught error"))
     }
 }
 
 #[async_trait]
 pub trait MessageConsumer {
-    async fn consume(&self, msg: &mut str) -> Result<(), Box<dyn std::error::Error>>;
+    async fn consume(&self, msg: &mut str) -> anyhow::Result<()>;
 }

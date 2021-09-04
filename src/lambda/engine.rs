@@ -8,8 +8,10 @@ use crate::ftx::ftx_order_gateway::FtxOrderGateway;
 use crate::lambda::lambda::Lambda;
 use crate::lambda::{LambdaInstance, LambdaInstanceConfig, LambdaState};
 
+use crate::lambda::lambda_instance::GenericLambdaInstanceConfig;
 use crate::pubsub::simple_message_bus::RedisBackedMessageBus;
 use crate::pubsub::SubscribeMarketDepthRequest;
+use std::time::Duration;
 
 pub async fn thread_order_update_cache(
     order_update_cache: Arc<OrderUpdateCache>,
@@ -18,7 +20,7 @@ pub async fn thread_order_update_cache(
         order_update_cache.subscribe().await;
     })
     .await;
-    Ok(())
+    Err(anyhow::Error::msg("thread_order_update_cache uncaught error"))
 }
 
 pub async fn thread_market_depth(
@@ -29,10 +31,27 @@ pub async fn thread_market_depth(
         market_depth_cache.subscribe(&market_depth_requests).await;
     })
     .await;
-    Ok(())
+    Err(anyhow::Error::msg("thread_market_depth uncaught error"))
 }
 
-pub async fn engine(instance_config: LambdaInstanceConfig) {
+pub async fn thread_order_gateway() -> anyhow::Result<()> {
+    // order gateway
+    tokio::spawn(async move {
+        loop {
+            let ftx_order_gateway = FtxOrderGateway::new();
+            tokio::select! {
+                Err(err) = ftx_order_gateway.subscribe() => {
+                    error!("ftx_order_gateway: {}", err);
+                }
+            }
+            tokio::time::sleep(Duration::from_millis(3000)).await;
+        }
+    })
+    .await;
+    Err(anyhow::Error::msg("thread_order_gateway uncaught error"))
+}
+
+pub async fn engine(instance_config: GenericLambdaInstanceConfig) {
     // market depth request
     let market_depth_cache = Arc::new(MarketDepthCache::new());
     let market_depth_tokens = &instance_config.lambda_params.market_depths;
@@ -40,9 +59,6 @@ pub async fn engine(instance_config: LambdaInstanceConfig) {
         .iter()
         .map(|token| SubscribeMarketDepthRequest::from_token(token.as_str()))
         .collect();
-
-    // order gateway
-    let ftx_order_gateway = FtxOrderGateway::new();
 
     // order update cache
     let order_update_cache = Arc::new(OrderUpdateCache::new());
@@ -63,7 +79,7 @@ pub async fn engine(instance_config: LambdaInstanceConfig) {
         Err(err) = thread_market_depth(market_depth_cache.clone(), market_depth_requests) => {
             log::error!("market_depth_cache panic: {}", err)
         },
-        Err(err) = ftx_order_gateway.subscribe() => {
+        Err(err) = thread_order_gateway() => {
             log::error!("order_gateway panic: {}", err);
         },
         Err(err) = thread_order_update_cache(order_update_cache.clone()) => {
