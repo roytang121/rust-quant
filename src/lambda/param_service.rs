@@ -5,7 +5,7 @@ use crate::lambda::LambdaState;
 
 use rocket::data::ToByteUnit;
 
-use rocket::http::Method;
+use rocket::http::{Method, Status};
 use rocket::response::content::Json;
 use rocket::route::{Handler, Outcome};
 
@@ -149,7 +149,7 @@ impl LambdaStrategyParamService {
                     serde_json::to_string(&entries).unwrap_or_else(|err| format!("{}", err));
                 Outcome::from(request, Json(response))
             }
-            Err(_) => Outcome::from(request, "error".to_string()),
+            Err(_) => Outcome::from(request, "Error"),
         }
     }
 
@@ -184,8 +184,8 @@ impl LambdaStrategyParamService {
                 .await;
                 return Outcome::from(request, "Ok");
             }
-            Err(_) => {}
-        }
+            Err(_) => Outcome::from(request, "Error"),
+        };
         Outcome::from(request, "Error")
     }
 
@@ -207,7 +207,7 @@ impl LambdaStrategyParamService {
                 //     serde_json::to_string(&value).unwrap_or_else(|err| format!("{}", err));
                 Outcome::from(request, Json(json))
             }
-            Err(_) => Outcome::from(request, "error"),
+            Err(_) => Outcome::from(request, "Error"),
         }
     }
 

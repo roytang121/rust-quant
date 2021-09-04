@@ -1,5 +1,5 @@
 use crate::core::OrderGateway;
-use crate::ftx::types::{FtxOrderData, WebSocketResponse, WebSocketResponseType};
+use crate::ftx::types::{FtxOrderData, FtxOrderFill, WebSocketResponse, WebSocketResponseType};
 use crate::ftx::utils::{connect_ftx_authed, ping_pong};
 use crate::ftx::FtxRestClient;
 use crate::model::constants::{Exchanges, PublishChannel};
@@ -16,15 +16,13 @@ use std::sync::Arc;
 
 use thiserror::Error;
 use tokio::net::TcpStream;
-
 use tokio::sync::RwLock;
 use tokio_stream::wrappers::ReceiverStream;
 use tokio_tungstenite::tungstenite::Message;
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
+use anyhow::Context;
 
-pub struct FtxOrderGateway {
-    order_cache: Arc<DashMap<String, String>>,
-}
+pub struct FtxOrderGateway {}
 
 #[derive(Error, Debug)]
 enum OrderGatewayError {
@@ -32,11 +30,45 @@ enum OrderGatewayError {
     Unknown,
 }
 
-impl FtxOrderGateway {
-    pub async fn process_message(
+#[async_trait]
+impl OrderGateway for FtxOrderGateway {
+    fn new() -> FtxOrderGateway {
+        FtxOrderGateway {}
+    }
+
+    async fn subscribe(&self) -> Result<(), Box<dyn std::error::Error>> {
+        let order_update_service = FtxOrderUpdateService::new();
+        let order_fill_service = FtxOrderFillService::new();
+        let order_request_service = FtxOrderRequestService::new();
+        let cancel_order_service = FtxCancelOrderService::new();
+        tokio::select! {
+            Err(err) = order_update_service.subscribe() => {
+                log::error!("order_update_service panic: {}", err)
+            },
+            Err(err) = order_fill_service.subscribe() => {
+                log::error!("order_fill_service panic: {}", err)
+            },
+            Err(err) = order_request_service.subscribe() => {
+                log::error!("order_request_service panic: {}", err)
+            },
+            Err(err) = cancel_order_service.subscribe() => {
+                log::error!("cancel_order_service panic: {}", err)
+            },
+        }
+        Ok(())
+    }
+}
+
+struct FtxOrderUpdateService {}
+impl FtxOrderUpdateService {
+    pub fn new() -> Self {
+        FtxOrderUpdateService {}
+    }
+
+    pub async fn process_stream(
         &self,
         stream: &mut SplitStream<WebSocketStream<MaybeTlsStream<TcpStream>>>,
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    ) -> anyhow::Result<()> {
         let mut redis = RedisBackedMessageBus::new().await?;
         while let Some(msg) = stream.next().await {
             let msg = msg?;
@@ -56,10 +88,10 @@ impl FtxOrderGateway {
             match response.type_ {
                 WebSocketResponseType::error => {
                     log::error!("error {:?}", response);
-                    return Err(Box::new(OrderGatewayError::Unknown));
+                    return Err(anyhow::Error::new(OrderGatewayError::Unknown));
                 }
                 WebSocketResponseType::update => {
-                    log::info!("{:?}", response);
+                    log::debug!("{:?}", response);
                     if let Some(data) = response.data {
                         let order_update = data.to_order_update();
                         redis
@@ -75,19 +107,10 @@ impl FtxOrderGateway {
                 }
             }
         }
-        Ok(())
-    }
-}
-
-#[async_trait]
-impl OrderGateway for FtxOrderGateway {
-    fn new() -> FtxOrderGateway {
-        FtxOrderGateway {
-            order_cache: Arc::new(DashMap::new()),
-        }
+        Err(anyhow!("FtxOrderUpdateService process_stream uncaught"))
     }
 
-    async fn subscribe(&self) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn subscribe(&self) -> anyhow::Result<()> {
         let (mut write, mut read) = connect_ftx_authed().await?;
         let (tx, rx) = tokio::sync::mpsc::channel(32);
         let init_message = json!({
@@ -97,23 +120,89 @@ impl OrderGateway for FtxOrderGateway {
         log::info!("{}", init_message);
         write.send(Message::Text(init_message.to_string())).await;
         let forward_write_to_ws = ReceiverStream::new(rx).map(Ok).forward(write);
-
-        let order_request_service = FtxOrderRequestService::new();
-        let cancel_order_service = FtxCancelOrderService::new();
         tokio::select! {
-            Err(err) = self.process_message(&mut read) => {
-                log::error!("ftx_order_gateway process_message panic: {}", err)
-            },
-            Err(err) = order_request_service.subscribe() => {
-                log::error!("order_request_service panic: {}", err)
-            },
-            Err(err) = cancel_order_service.subscribe() => {
-                log::error!("cancel_order_service panic: {}", err)
-            },
+            _ = forward_write_to_ws => {},
+            _ = ping_pong(tx) => {},
+            Err(err) = self.process_stream(&mut read) => {
+                error!("FtxOrderUpdateService process_message: {}", err)
+            }
+        }
+        Ok(())
+    }
+}
+
+struct FtxOrderFillService {}
+
+impl FtxOrderFillService {
+    pub fn new() -> Self {
+        FtxOrderFillService {}
+    }
+
+    pub async fn process_stream(
+        &self,
+        stream: &mut SplitStream<WebSocketStream<MaybeTlsStream<TcpStream>>>,
+    ) -> anyhow::Result<()> {
+        let mut redis = RedisBackedMessageBus::new().await?;
+        while let Some(msg) = stream.next().await {
+            let msg = msg?;
+            let response = serde_json::from_str::<WebSocketResponse<FtxOrderFill>>(
+                msg.to_string().as_mut_str(),
+            )?;
+            match response.channel {
+                None => {
+                    continue;
+                }
+                Some(ref channel) => {
+                    if channel != "fills" {
+                        continue;
+                    }
+                }
+            }
+            match response.type_ {
+                WebSocketResponseType::error => {
+                    log::error!("error {:?}", response);
+                    return Err(anyhow::Error::new(OrderGatewayError::Unknown));
+                }
+                WebSocketResponseType::update => {
+                    log::debug!("{:?}", response);
+                    if let Some(data) = response.data {
+                        let order_update = data.to_order_fill();
+                        redis
+                            .publish(
+                                PublishChannel::OrderFill.to_string().as_str(),
+                                &order_update,
+                            )
+                            .await;
+                    }
+                }
+                _ => {
+                    log::info!("{:?}", response);
+                }
+            }
+        }
+        Err(anyhow::Error::msg(
+            "FtxOrderFillsService process_stream uncaught",
+        ))
+    }
+
+    pub async fn subscribe(&self) -> anyhow::Result<()> {
+        let (mut write, mut read) = connect_ftx_authed().await?;
+        let (tx, rx) = tokio::sync::mpsc::channel(32);
+        let init_message = json!({
+            "op": "subscribe",
+            "channel": "fills",
+        });
+        info!("{}", init_message);
+        write.send(Message::Text(init_message.to_string())).await;
+        let forward_write_to_ws = ReceiverStream::new(rx).map(Ok).forward(write);
+        tokio::select! {
+            Err(err) = self.process_stream(&mut read) => {
+                error!("FtxOrderUpdateService process_message: {}", err);
+            }
             _ = forward_write_to_ws => {},
             _ = ping_pong(tx) => {},
         }
-        Ok(())
+        Err(anyhow!("FtxOrderFillsService subscribe uncaught"))
     }
 }
 

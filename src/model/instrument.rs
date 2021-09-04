@@ -1,9 +1,12 @@
 use crate::cache::OrderUpdateCache;
-use crate::model::constants::Exchanges;
-use crate::model::{OrderRequest, OrderSide, OrderStatus, OrderType, OrderUpdate};
+use crate::model::constants::{Exchanges, PublishChannel};
+use crate::model::{OrderFill, OrderRequest, OrderSide, OrderStatus, OrderType, OrderUpdate};
 
 use crate::pubsub::PublishPayload;
 
+use crate::pubsub::simple_message_bus::{
+    MessageConsumer, RedisBackedMessageBus, TypedMessageConsumer,
+};
 pub use std::str::FromStr;
 
 #[derive(Debug)]
@@ -88,5 +91,35 @@ impl<'r> Instrument<'r> {
     pub async fn cancel_order(&self, client_id: &str) -> Result<(), Box<dyn std::error::Error>> {
         OrderRequest::cancel_order(&self.order_cache.cache, &self.message_bus_sender, client_id)
             .await
+    }
+
+    pub async fn subscribe_order_fill<T>(&self, consumer: &T) -> anyhow::Result<()>
+    where
+        T: TypedMessageConsumer<OrderFill> + Sync,
+    {
+        let order_fill_filter =
+            OrderFillFilter(self.exchange.to_owned(), self.market.to_owned(), consumer);
+        RedisBackedMessageBus::subscribe_channels(
+            vec![PublishChannel::OrderFill.as_ref()],
+            &order_fill_filter,
+        )
+        .await
+    }
+}
+
+pub struct OrderFillFilter<'r, ResultConsumer>(Exchanges, String, &'r ResultConsumer);
+
+#[async_trait::async_trait]
+impl<'r, ResultConsumer> MessageConsumer for OrderFillFilter<'r, ResultConsumer>
+where
+    ResultConsumer: TypedMessageConsumer<OrderFill> + Sync,
+{
+    async fn consume(&self, msg: &mut str) -> anyhow::Result<()> {
+        let order_fill: OrderFill = serde_json::from_str(msg)?;
+        if order_fill.exchange == self.0 && order_fill.market == self.1 {
+            self.2.consume(order_fill).await
+        } else {
+            Ok(())
+        }
     }
 }

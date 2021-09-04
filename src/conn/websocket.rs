@@ -4,9 +4,7 @@ use tokio::net::TcpStream;
 
 use tokio_tungstenite::{connect_async, MaybeTlsStream, WebSocketStream};
 
-async fn create_websocket(
-    url: &str,
-) -> Result<WebSocketStream<MaybeTlsStream<TcpStream>>, Box<dyn Error>> {
+async fn create_websocket(url: &str) -> anyhow::Result<WebSocketStream<MaybeTlsStream<TcpStream>>> {
     let (socket, response) = connect_async(url::Url::parse(url)?).await?;
     println!("Connected to conn");
     println!("Response HTTP code {}", response.status());
@@ -18,7 +16,7 @@ async fn create_websocket(
 
 pub async fn connect_wss_async(
     url: &str,
-) -> Result<WebSocketStream<MaybeTlsStream<TcpStream>>, Box<dyn Error>> {
+) -> anyhow::Result<WebSocketStream<MaybeTlsStream<TcpStream>>> {
     let socket = create_websocket(url).await?;
     Ok(socket)
 }

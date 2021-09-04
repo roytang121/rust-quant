@@ -1,5 +1,5 @@
 use crate::model::constants::Exchanges;
-use crate::model::{OrderRequest, OrderSide, OrderStatus, OrderType, OrderUpdate};
+use crate::model::{OrderRequest, OrderSide, OrderStatus, OrderType, OrderUpdate, OrderFill};
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -73,9 +73,8 @@ pub struct FtxOrderData {
     pub filledSize: f64,
     pub remainingSize: f64,
     pub avgFillPrice: Option<f64>,
-    // pub createdAt: String,
+    pub createdAt: String,
 }
-
 impl FtxOrderData {
     pub fn to_order_update(&self) -> OrderUpdate {
         OrderUpdate {
@@ -104,6 +103,47 @@ impl FtxOrderData {
             filledSize: self.filledSize,
             remainingSize: self.remainingSize,
             avgFillPrice: self.avgFillPrice,
+        }
+    }
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+#[allow(non_camel_case_types, non_snake_case)]
+pub struct FtxOrderFill {
+    pub fee: f64,
+    pub feeRate: f64,
+    pub future: Option<String>,
+    pub id: i64,
+    pub liquidity: String,
+    pub market: String,
+    pub orderId: i64,
+    pub tradeId: i64,
+    pub price: f64,
+    pub side: FtxOrderSide,
+    pub size: f64,
+    pub time: String,
+    #[serde(rename = "type")]
+    pub type_: String,
+}
+impl FtxOrderFill {
+    pub fn to_order_fill(&self) -> OrderFill {
+        OrderFill {
+            exchange: Exchanges::FTX,
+            fee: self.fee,
+            fee_rate: self.feeRate,
+            id: self.id,
+            liquidity: self.liquidity.clone(),
+            market: self.market.clone(),
+            orderId: self.orderId,
+            tradeId: self.tradeId,
+            price: self.price,
+            side: match self.side {
+                FtxOrderSide::buy => OrderSide::Buy,
+                FtxOrderSide::sell => OrderSide::Sell,
+            },
+            size: self.size,
+            time: self.time.clone(),
+            type_: self.type_.clone(),
         }
     }
 }

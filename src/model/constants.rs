@@ -25,6 +25,7 @@ pub enum Exchanges {
 )]
 pub enum PublishChannel {
     OrderUpdate,
+    OrderFill,
     OrderRequest,
     MarketDepth,
     CancelOrder,

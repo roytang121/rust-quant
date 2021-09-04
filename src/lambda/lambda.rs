@@ -7,7 +7,7 @@ use crate::lambda::strategy::swap_mm::params::{
 };
 use crate::lambda::{GenericLambdaInstanceConfig, LambdaInstance, LambdaInstanceConfig};
 
-use crate::model::{Instrument, InstrumentToken, OrderSide};
+use crate::model::{Instrument, InstrumentToken, OrderSide, OrderFill};
 use crate::pubsub::PublishPayload;
 
 use rocket::tokio::sync::mpsc::error::SendError;
@@ -17,6 +17,7 @@ use std::ops::Deref;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
+use crate::pubsub::simple_message_bus::{MessageConsumer, TypedMessageConsumer};
 
 type InitParams = SwapMMInitParams;
 type StrategyParams = SwapMMStrategyParams;
@@ -67,14 +68,8 @@ impl<'r> Lambda<'r> {
         }
     }
 
-    fn get_strategy_params(&self) -> Result<StrategyParams, Box<dyn std::error::Error>> {
-        /*let params = LambdaStrategyParamsRequest::request_strategy_params_snapshot(
-            &self.strategy_params_request_sender,
-        )
-        .await?;
-        let transformed = serde_json::from_value::<StrategyParams>(params).unwrap();
-        Ok(transformed)*/
-        Ok(self.lambda_instance.get_strategy_params_clone())
+    fn get_strategy_params(&self) -> StrategyParams {
+        self.lambda_instance.get_strategy_params_clone()
     }
 
     async fn read_strategy_state(&self) -> anyhow::Result<RwLockReadGuard<'_, StrategyState>> {
@@ -182,6 +177,8 @@ impl<'r> Lambda<'r> {
     // }
 
     pub async fn subscribe(&self) -> Result<(), Box<dyn std::error::Error>> {
+        let hedger = Hedger(&self.depth_instrument);
+
         tokio::select! {
             result = self.update() => {
                 panic!("lambda update panic: {:?}", result)
@@ -195,6 +192,21 @@ impl<'r> Lambda<'r> {
             result = self.lambda_instance.subscribe() => {
                 panic!("lambda_instance subscribe_strategy_params panic: {:?}", result)
             }
+            result = hedger.subscribe() => {
+                panic!("depth_instrument.subscribe_order_fill panic: {:?}", result)
+            }
         }
+    }
+}
+struct Hedger<'h>(&'h Instrument<'h>);
+impl Hedger<'_> {
+    pub async fn subscribe(&self) -> anyhow::Result<()> {
+        self.0.subscribe_order_fill(self).await
+    }
+}
+#[async_trait::async_trait]
+impl<'r> TypedMessageConsumer<OrderFill> for Hedger<'r> {
+    async fn consume(&self, msg: OrderFill) -> anyhow::Result<()> {
+        Ok(())
     }
 }

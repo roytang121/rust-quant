@@ -3,8 +3,8 @@ mod instrument;
 pub mod market_data_model;
 mod order_data_model;
 
-pub use instrument::{Instrument, InstrumentToken};
+pub use instrument::{Instrument, InstrumentToken, OrderFillFilter};
 pub use order_data_model::{
-    CancelOrderRequest, OrderRequest, OrderSide, OrderStatus, OrderType, OrderUpdate,
+    CancelOrderRequest, OrderFill, OrderRequest, OrderSide, OrderStatus, OrderType, OrderUpdate,
     OrderUpdateCacheInner,
 };

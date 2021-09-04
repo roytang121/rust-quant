@@ -14,9 +14,7 @@ use sha2::Sha256;
 use crate::conn::websocket::connect_wss_async;
 use crate::core::config::ConfigStore;
 
-pub(crate) async fn ping_pong(
-    write: tokio::sync::mpsc::Sender<Message>,
-) -> Result<(), Box<dyn Error>> {
+pub(crate) async fn ping_pong(write: tokio::sync::mpsc::Sender<Message>) -> anyhow::Result<()> {
     loop {
         let ping = json!({"op": "ping"});
         write.send(Message::Text(ping.to_string())).await;
@@ -24,26 +22,20 @@ pub(crate) async fn ping_pong(
     }
 }
 
-pub async fn connect_ftx() -> Result<
-    (
-        SplitSink<WebSocketStream<MaybeTlsStream<TcpStream>>, Message>,
-        SplitStream<WebSocketStream<MaybeTlsStream<TcpStream>>>,
-    ),
-    Box<dyn Error>,
-> {
+pub async fn connect_ftx() -> anyhow::Result<(
+    SplitSink<WebSocketStream<MaybeTlsStream<TcpStream>>, Message>,
+    SplitStream<WebSocketStream<MaybeTlsStream<TcpStream>>>,
+)> {
     let url = "wss://ftx.com/ws/";
     let socket = connect_wss_async(&url).await?;
     let (write, read) = socket.split();
     Ok((write, read))
 }
 
-pub async fn connect_ftx_authed() -> Result<
-    (
-        SplitSink<WebSocketStream<MaybeTlsStream<TcpStream>>, Message>,
-        SplitStream<WebSocketStream<MaybeTlsStream<TcpStream>>>,
-    ),
-    Box<dyn std::error::Error>,
-> {
+pub async fn connect_ftx_authed() -> anyhow::Result<(
+    SplitSink<WebSocketStream<MaybeTlsStream<TcpStream>>, Message>,
+    SplitStream<WebSocketStream<MaybeTlsStream<TcpStream>>>,
+)> {
     let cfg = ConfigStore::load();
     let (mut write, read) = connect_ftx().await?;
     let ts = chrono::Utc::now().timestamp_millis();

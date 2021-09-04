@@ -19,9 +19,7 @@ pub async fn thread_order_update_cache(
         order_update_cache.subscribe().await;
     })
     .await;
-    Err(anyhow::Error::msg(
-        "thread_order_update_cache uncaught error",
-    ))
+    Err(anyhow!("thread_order_update_cache uncaught error",))
 }
 
 pub async fn thread_market_depth(
@@ -32,7 +30,7 @@ pub async fn thread_market_depth(
         market_depth_cache.subscribe(&market_depth_requests).await;
     })
     .await;
-    Err(anyhow::Error::msg("thread_market_depth uncaught error"))
+    Err(anyhow!("thread_market_depth uncaught error"))
 }
 
 pub async fn thread_order_gateway() -> anyhow::Result<()> {
@@ -49,7 +47,7 @@ pub async fn thread_order_gateway() -> anyhow::Result<()> {
         }
     })
     .await;
-    Err(anyhow::Error::msg("thread_order_gateway uncaught error"))
+    Err(anyhow!("thread_order_gateway uncaught error"))
 }
 
 pub async fn engine(instance_config: GenericLambdaInstanceConfig) {

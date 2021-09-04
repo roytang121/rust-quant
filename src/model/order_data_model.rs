@@ -63,6 +63,24 @@ impl OrderUpdate {
         }
     }
 }
+#[derive(Deserialize, Serialize, Debug)]
+#[allow(non_camel_case_types, non_snake_case)]
+pub struct OrderFill {
+    pub exchange: Exchanges,
+    pub fee: f64,
+    pub fee_rate: f64,
+    pub id: i64,
+    pub liquidity: String,
+    pub market: String,
+    pub orderId: i64,
+    pub tradeId: i64,
+    pub price: f64,
+    pub side: OrderSide,
+    pub size: f64,
+    pub time: String,
+    #[serde(rename = "type")]
+    pub type_: String,
+}
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct OrderRequest {
