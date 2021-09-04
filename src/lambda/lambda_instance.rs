@@ -4,15 +4,15 @@ use crate::lambda::strategy::swap_mm::params::StrategyStateEnum;
 use confy::ConfyError;
 use rocket::tokio::sync::mpsc::error::SendError;
 use serde::{Deserialize, Serialize};
-use serde_json::{Value, Error};
+use serde_json::Value;
 use std::borrow::Borrow;
 use std::cell::RefCell;
 
 use std::ops::Deref;
 
-use tokio::sync::RwLock;
 use serde::de::DeserializeOwned;
 use std::fmt::Debug;
+use tokio::sync::RwLock;
 
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]
 pub struct LambdaParams {
@@ -165,7 +165,9 @@ impl<SP: Clone + Serialize + DeserializeOwned + Debug> LambdaInstance<SP> {
         self.strategy_params.clone().into_inner()
     }
 
-    pub async fn subscribe_strategy_params_requests(&self) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn subscribe_strategy_params_requests(
+        &self,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let mut strategy_params_receiver = self.strategy_params_receiver.write().await;
         while let Some(msg) = strategy_params_receiver.recv().await {
             match msg.0 {

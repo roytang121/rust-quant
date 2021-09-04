@@ -180,7 +180,8 @@ impl LambdaStrategyParamService {
                 LambdaStrategyParamsRequest::request_update_strategy_params(
                     &self.strategy_param_request_sender,
                     snapshot,
-                ).await;
+                )
+                .await;
                 return Outcome::from(request, "Ok");
             }
             Err(_) => {}

@@ -6,7 +6,6 @@ use crate::cache::OrderUpdateCache;
 use crate::core::OrderGateway;
 use crate::ftx::ftx_order_gateway::FtxOrderGateway;
 use crate::lambda::lambda::Lambda;
-use crate::lambda::{LambdaInstance, LambdaInstanceConfig, LambdaState};
 
 use crate::lambda::lambda_instance::GenericLambdaInstanceConfig;
 use crate::pubsub::simple_message_bus::RedisBackedMessageBus;
@@ -20,7 +19,9 @@ pub async fn thread_order_update_cache(
         order_update_cache.subscribe().await;
     })
     .await;
-    Err(anyhow::Error::msg("thread_order_update_cache uncaught error"))
+    Err(anyhow::Error::msg(
+        "thread_order_update_cache uncaught error",
+    ))
 }
 
 pub async fn thread_market_depth(

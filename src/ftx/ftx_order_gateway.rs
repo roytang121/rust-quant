@@ -12,7 +12,6 @@ use futures_util::{SinkExt, StreamExt};
 use redis::Commands;
 use serde_json::json;
 
-use std::error::Error;
 use std::sync::Arc;
 
 use thiserror::Error;

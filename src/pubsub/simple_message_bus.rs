@@ -61,10 +61,7 @@ impl RedisBackedMessageBus {
         sender.send(payload).await
     }
 
-    pub async fn subscribe_channels<T>(
-        channels: Vec<&str>,
-        consumer: &T,
-    ) -> anyhow::Result<()>
+    pub async fn subscribe_channels<T>(channels: Vec<&str>, consumer: &T) -> anyhow::Result<()>
     where
         T: MessageConsumer,
     {
