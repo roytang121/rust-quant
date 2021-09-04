@@ -25,7 +25,7 @@ pub struct SwapMMStrategyStateStruct {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum StrategyStateEnum {
     None,
-    SwapMM(SwapMMStrategyStateStruct)
+    Value(serde_json::Value),
 }
 impl ToString for StrategyStateEnum {
     fn to_string(&self) -> String {
@@ -33,7 +33,7 @@ impl ToString for StrategyStateEnum {
             StrategyStateEnum::None => {
                 "{}".to_string()
             }
-            StrategyStateEnum::SwapMM(value) => {
+            StrategyStateEnum::Value(value) => {
                 serde_json::to_string(value).unwrap()
             }
         }

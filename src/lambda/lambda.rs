@@ -88,9 +88,10 @@ impl<'r> Lambda<'r> {
     async fn publish_state(&self) -> Result<(), SendError<LambdaStrategyParamsRequest>> {
         let strategy_state = self.strategy_state.read().await;
         let copy_state = strategy_state.deref().clone();
+        let value = serde_json::to_value(copy_state).unwrap();
         LambdaStrategyParamsRequest::request_set_state(
             &self.strategy_params_request_sender,
-            StrategyStateEnum::SwapMM(copy_state),
+            StrategyStateEnum::Value(value),
         )
         .await
     }

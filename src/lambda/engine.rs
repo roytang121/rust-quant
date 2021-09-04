@@ -42,7 +42,7 @@ pub async fn engine(instance_config: LambdaInstanceConfig) {
         .collect();
 
     // order gateway
-    let order_gateway = FtxOrderGateway::new();
+    let ftx_order_gateway = FtxOrderGateway::new();
 
     // order update cache
     let order_update_cache = Arc::new(OrderUpdateCache::new());
@@ -63,7 +63,7 @@ pub async fn engine(instance_config: LambdaInstanceConfig) {
         Err(err) = thread_market_depth(market_depth_cache.clone(), market_depth_requests) => {
             log::error!("market_depth_cache panic: {}", err)
         },
-        Err(err) = order_gateway.subscribe() => {
+        Err(err) = ftx_order_gateway.subscribe() => {
             log::error!("order_gateway panic: {}", err);
         },
         Err(err) = thread_order_update_cache(order_update_cache.clone()) => {

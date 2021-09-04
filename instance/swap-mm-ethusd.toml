@@ -12,5 +12,4 @@ depth_symbol = 'ETH-PERP.FTX'
 hedge_symbol = 'ETH/USD.FTX'
 
 [strategy_params]
-depth_symbol = 'ETH-PERP.FTX'
-hedge_symbol = 'ETH/USD.FTX'
+min_level = 3
