@@ -3,8 +3,8 @@ use crate::ftx::types::{FtxOrderData, FtxOrderFill, WebSocketResponse, WebSocket
 use crate::ftx::utils::{connect_ftx_authed, ping_pong};
 use crate::ftx::FtxRestClient;
 use crate::model::constants::{Exchanges, PublishChannel};
-use crate::model::{CancelOrderRequest, OrderRequest};
-use crate::pubsub::simple_message_bus::{MessageConsumer, RedisBackedMessageBus};
+use crate::model::{CancelOrderRequest, OrderRequest, OrderStatus, OrderUpdate};
+use crate::pubsub::simple_message_bus::{MessageBusSender, MessageConsumer, RedisBackedMessageBus};
 use async_trait::async_trait;
 
 use futures_util::stream::SplitStream;
@@ -14,6 +14,7 @@ use serde_json::json;
 
 use std::sync::Arc;
 
+use crate::pubsub::PublishPayload;
 use thiserror::Error;
 use tokio::net::TcpStream;
 use tokio::sync::RwLock;
@@ -21,7 +22,9 @@ use tokio_stream::wrappers::ReceiverStream;
 use tokio_tungstenite::tungstenite::Message;
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
 
-pub struct FtxOrderGateway {}
+pub struct FtxOrderGateway {
+    message_bus_sender: MessageBusSender,
+}
 
 #[derive(Error, Debug)]
 enum OrderGatewayError {
@@ -31,14 +34,14 @@ enum OrderGatewayError {
 
 #[async_trait]
 impl OrderGateway for FtxOrderGateway {
-    fn new() -> FtxOrderGateway {
-        FtxOrderGateway {}
+    fn new(message_bus_sender: MessageBusSender) -> FtxOrderGateway {
+        FtxOrderGateway { message_bus_sender }
     }
 
     async fn subscribe(&self) -> Result<(), Box<dyn std::error::Error>> {
         let order_update_service = FtxOrderUpdateService::new();
         let order_fill_service = FtxOrderFillService::new();
-        let order_request_service = FtxOrderRequestService::new();
+        let order_request_service = FtxOrderRequestService::new(self.message_bus_sender.clone());
         let cancel_order_service = FtxCancelOrderService::new();
         tokio::select! {
             Err(err) = order_update_service.subscribe() => {
@@ -207,11 +210,15 @@ impl FtxOrderFillService {
 
 struct FtxOrderRequestService {
     client: Arc<RwLock<FtxRestClient>>,
+    message_bus_sender: MessageBusSender,
 }
 impl FtxOrderRequestService {
-    pub fn new() -> Self {
+    pub fn new(message_bus_sender: MessageBusSender) -> Self {
         let client = Arc::new(RwLock::new(FtxRestClient::new()));
-        FtxOrderRequestService { client }
+        FtxOrderRequestService {
+            client,
+            message_bus_sender,
+        }
     }
     pub async fn subscribe(&self) -> Result<(), Box<dyn std::error::Error>> {
         RedisBackedMessageBus::subscribe_channels(
@@ -223,13 +230,42 @@ impl FtxOrderRequestService {
     }
     async fn accept_order_request(&self, order_request: OrderRequest) {
         let client_ref = self.client.clone();
+        let message_bus_sender = self.message_bus_sender.clone();
         // parallel
         tokio::spawn(async move {
+            let original_request = order_request.clone();
             let client = client_ref.read().await;
-            match client.place_order(order_request).await {
-                Ok(_response) => {}
-                Err(_err) => {}
-            }
+            let api_result = client.place_order(order_request).await;
+            match api_result {
+                Ok(response) => {}
+                Err(_) => {
+                    // set OrderUpdate to Failed
+                    let failed_order_update = OrderUpdate {
+                        exchange: Exchanges::FTX,
+                        id: -1,
+                        client_id: original_request.client_id.clone(),
+                        market: original_request.market.clone(),
+                        type_: original_request.type_.clone(),
+                        side: original_request.side.clone(),
+                        size: original_request.size.clone(),
+                        price: original_request.price.clone(),
+                        reduceOnly: false,
+                        ioc: original_request.ioc.clone(),
+                        postOnly: original_request.post_only.clone(),
+                        status: OrderStatus::Failed,
+                        filledSize: 0.0,
+                        remainingSize: 0.0,
+                        avgFillPrice: None,
+                    };
+                    message_bus_sender
+                        .send(PublishPayload {
+                            channel: PublishChannel::OrderUpdate.to_string(),
+                            payload: RedisBackedMessageBus::pack_json(&failed_order_update)
+                                .unwrap(),
+                        })
+                        .await;
+                }
+            };
         });
     }
 }

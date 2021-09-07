@@ -21,7 +21,7 @@ pub struct LambdaParams {
 }
 
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]
-pub struct LambdaInstanceConfig<SP: Clone> {
+pub struct LambdaInstanceConfig<SP> {
     pub name: String,
     pub lambda_params: LambdaParams,
     pub init_params: Value,
@@ -68,7 +68,7 @@ impl GenericLambdaInstanceConfig {
 
 pub type LambdaStrategyParamsRequestSender = tokio::sync::mpsc::Sender<LambdaStrategyParamsRequest>;
 
-pub struct LambdaInstance<SP: Clone> {
+pub struct LambdaInstance<SP> {
     pub name: String,
     pub lambda_params: LambdaParams,
     pub init_params: Value,

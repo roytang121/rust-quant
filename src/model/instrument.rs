@@ -55,7 +55,7 @@ impl<'r> Instrument<'r> {
                             open_orders.push(Clone::clone(&ou.value()));
                         }
                     }
-                    OrderStatus::Closed => {}
+                    OrderStatus::Closed | OrderStatus::Failed => {}
                 }
             }
         }

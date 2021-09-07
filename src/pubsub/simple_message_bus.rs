@@ -7,6 +7,8 @@ use serde::Serialize;
 
 use tokio::sync::mpsc::error::SendError;
 
+pub type MessageBusSender = tokio::sync::mpsc::Sender<PublishPayload>;
+
 pub struct RedisBackedMessageBus {
     pub conn: redis::aio::Connection,
     pub publish_tx: tokio::sync::mpsc::Sender<PublishPayload>,
@@ -20,7 +22,7 @@ impl RedisBackedMessageBus {
         let cfg = ConfigStore::load();
         let redis_client = redis::Client::open(cfg.redis_url)?;
         let conn = redis_client.get_async_connection().await?;
-        let (tx, rx) = tokio::sync::mpsc::channel::<PublishPayload>(100);
+        let (tx, rx) = tokio::sync::mpsc::channel::<PublishPayload>(200);
         let instance = RedisBackedMessageBus {
             conn,
             publish_tx: tx,
@@ -35,7 +37,7 @@ impl RedisBackedMessageBus {
         Ok(buf)
     }
 
-    pub fn pack_json<T: Serialize>(value: &T) -> Result<String, Box<dyn std::error::Error>> {
+    pub fn pack_json<T: Serialize>(value: &T) -> anyhow::Result<String> {
         Ok(serde_json::to_string(&value)?)
     }
 

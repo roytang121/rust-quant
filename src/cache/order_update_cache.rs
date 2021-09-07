@@ -36,7 +36,7 @@ impl MessageConsumer for OrderUpdateCache {
         if order_update.has_cache_key() {
             let cache_key = order_update.cache_key();
             match order_update.status {
-                OrderStatus::Closed => {
+                OrderStatus::Closed | OrderStatus::Failed => {
                     self.cache.remove(&cache_key);
                 }
                 _ => {

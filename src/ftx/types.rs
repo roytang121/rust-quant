@@ -47,7 +47,7 @@ pub struct WebSocketResponse<DataType> {
 }
 
 #[derive(Deserialize, Serialize, Debug)]
-pub struct OrderBookData {
+pub struct FtxOrderBookData {
     pub action: WebSocketResponseType,
     pub bids: Vec<[f64; 2]>,
     pub asks: Vec<[f64; 2]>,

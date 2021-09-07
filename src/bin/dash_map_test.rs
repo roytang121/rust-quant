@@ -17,22 +17,26 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let loop_1 = tokio::spawn(async move {
         loop {
-            let mut cur = handle_1.get_mut("cur").unwrap();
-            cur.0 = cur.0 + 1;
-            log::info!("set cur to {}", cur.0);
-            // tokio::time::sleep(Duration::from_millis(10)).await;
+            let cur = handle_1.get("cur").unwrap();
+            log::info!("loop 1 get {}", cur.0);
+            drop(cur);
+            tokio::time::sleep(Duration::from_millis(100)).await;
         }
     });
 
     let loop_2 = tokio::spawn(async move {
+        let mut count = 0i32;
         loop {
-            let cur_ref = handle_2.get("cur").unwrap();
-            let cur = cur_ref.value().clone();
+            handle_2.insert("cur", MyValue(count));
+            count += 1;
+            // let cur_ref = handle_2.get("cur").unwrap();
+            // let cur = cur_ref.value().clone();
             // drop(cur_ref);
-            println!("{:?}", cur);
-            tokio::time::sleep(Duration::from_millis(10)).await;
+            // println!("{:?}", cur);
+            // tokio::time::sleep(Duration::from_millis(10)).await;
         }
     });
+
     tokio::select! {
         Err(err) = loop_1 => {
             log::error!("loop_1: {}", err)

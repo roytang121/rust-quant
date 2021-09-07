@@ -8,7 +8,7 @@ use tokio_stream::wrappers::ReceiverStream;
 use tokio_tungstenite::tungstenite::Message;
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
 
-use crate::ftx::types::{OrderBookData, WebSocketResponse};
+use crate::ftx::types::{FtxOrderBookData, WebSocketResponse};
 use crate::ftx::utils::{connect_ftx, ping_pong};
 use crate::model::constants::{Exchanges, PublishChannel};
 use crate::model::market_data_model::{MarketDepth, PriceLevel};
@@ -16,7 +16,7 @@ use crate::pubsub::simple_message_bus::RedisBackedMessageBus;
 use crate::pubsub::{MessageBusUtils, PublishPayload};
 
 pub fn process_orderbook_update(
-    update: &OrderBookData,
+    update: &FtxOrderBookData,
     bid_ob: &mut HashSet<PriceLevel>,
     ask_ob: &mut HashSet<PriceLevel>,
 ) {
@@ -72,7 +72,7 @@ pub async fn subscribe_message(
         let msg = msg?;
         let time_start_ns = chrono::Utc::now().timestamp_nanos();
         let parse_result =
-            serde_json::from_slice::<WebSocketResponse<OrderBookData>>(&mut *msg.into_data());
+            serde_json::from_slice::<WebSocketResponse<FtxOrderBookData>>(&mut *msg.into_data());
         match parse_result {
             Ok(response) => {
                 log::debug!("{:?}", response);

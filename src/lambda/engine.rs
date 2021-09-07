@@ -8,7 +8,7 @@ use crate::ftx::ftx_order_gateway::FtxOrderGateway;
 use crate::lambda::lambda::Lambda;
 
 use crate::lambda::lambda_instance::GenericLambdaInstanceConfig;
-use crate::pubsub::simple_message_bus::RedisBackedMessageBus;
+use crate::pubsub::simple_message_bus::{MessageBusSender, RedisBackedMessageBus};
 use crate::pubsub::SubscribeMarketDepthRequest;
 use std::time::Duration;
 
@@ -33,11 +33,11 @@ pub async fn thread_market_depth(
     Err(anyhow!("thread_market_depth uncaught error"))
 }
 
-pub async fn thread_order_gateway() -> anyhow::Result<()> {
+pub async fn thread_order_gateway(message_bus_sender: MessageBusSender) -> anyhow::Result<()> {
     // order gateway
     tokio::spawn(async move {
         loop {
-            let ftx_order_gateway = FtxOrderGateway::new();
+            let ftx_order_gateway = FtxOrderGateway::new(message_bus_sender.clone());
             tokio::select! {
                 Err(err) = ftx_order_gateway.subscribe() => {
                     error!("ftx_order_gateway: {}", err);
@@ -71,14 +71,14 @@ pub async fn engine(instance_config: GenericLambdaInstanceConfig) {
         instance_config,
         &market_depth_cache,
         &order_update_cache,
-        message_bus_sender,
+        message_bus_sender.clone(),
     );
 
     tokio::select! {
         Err(err) = thread_market_depth(market_depth_cache.clone(), market_depth_requests) => {
             log::error!("market_depth_cache panic: {}", err)
         },
-        Err(err) = thread_order_gateway() => {
+        Err(err) = thread_order_gateway(message_bus_sender.clone()) => {
             log::error!("order_gateway panic: {}", err);
         },
         Err(err) = thread_order_update_cache(order_update_cache.clone()) => {

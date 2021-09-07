@@ -18,6 +18,7 @@ pub enum OrderStatus {
     New,
     Open,
     Closed,
+    Failed,
     PendingNew,
     PendingCancel,
 }

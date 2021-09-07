@@ -14,7 +14,7 @@ pub struct FtxRestClient {
     secret: String,
 }
 
-type ApiResult = Result<serde_json::Value, Box<dyn std::error::Error>>;
+type ApiResult = anyhow::Result<serde_json::Value>;
 
 impl FtxRestClient {
     pub fn new() -> FtxRestClient {
