@@ -5,11 +5,12 @@ use crate::lambda::LambdaState;
 
 use rocket::data::ToByteUnit;
 
-use rocket::http::Method;
+use rocket::http::{Header, Method};
 use rocket::response::content::Json;
 use rocket::route::{Handler, Outcome};
 
-use rocket::{Data, Request};
+use rocket::fairing::{Fairing, Info, Kind};
+use rocket::{Data, Request, Response};
 use serde_json::Value;
 
 #[derive(Clone)]
@@ -33,6 +34,7 @@ pub struct KeyValueEntry {
     #[serde()]
     #[serde(rename = "type")]
     type_: KeyValueType,
+    group: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -48,6 +50,28 @@ pub trait Stated {
     fn set_state(&mut self, new_state: LambdaState);
 }
 
+pub struct CORS;
+
+#[async_trait::async_trait]
+impl Fairing for CORS {
+    fn info(&self) -> Info {
+        Info {
+            name: "Add CORS headers to responses",
+            kind: Kind::Response,
+        }
+    }
+
+    async fn on_response<'r>(&self, request: &'r Request<'_>, response: &mut Response<'r>) {
+        response.set_header(Header::new("Access-Control-Allow-Origin", "*"));
+        response.set_header(Header::new(
+            "Access-Control-Allow-Methods",
+            "POST, GET, PATCH, OPTIONS",
+        ));
+        response.set_header(Header::new("Access-Control-Allow-Headers", "*"));
+        response.set_header(Header::new("Access-Control-Allow-Credentials", "true"));
+    }
+}
+
 impl LambdaStrategyParamService {
     pub fn new(strategy_param_request_sender: LambdaStrategyParamsRequestSender) -> Self {
         LambdaStrategyParamService {
@@ -61,30 +85,20 @@ impl LambdaStrategyParamService {
         copy
     }
     pub async fn subscribe(&self) -> Result<(), rocket::Error> {
-        // let config = rocket::Config {
-        //     // port: 7777,
-        //     shutdown: Shutdown {
-        //         ctrlc: true,
-        //         signals: {
-        //             let mut set = std::collections::HashSet::new();
-        //             set.insert(Sig::Term);
-        //             set.insert(Sig::Hup);
-        //             set.insert(Sig::Int);
-        //             set
-        //         },
-        //         force: true,
-        //         ..Default::default()
-        //     },
-        //     ..rocket::Config::debug_default()
-        // };
+        let config = rocket::Config {
+            port: 6008,
+            ..rocket::Config::debug_default()
+        };
         let routes = vec![
             rocket::route::Route::new(Method::Get, "/params", self.route(MyRoute::GetParam)),
             rocket::route::Route::new(Method::Post, "/params", self.route(MyRoute::UpdateParam)),
-            rocket::route::Route::new(Method::Get, "/state", self.route(MyRoute::GetState)),
+            rocket::route::Route::new(Method::Get, "/states", self.route(MyRoute::GetState)),
         ];
+
         rocket::build()
-            // .configure(config)
+            .configure(config)
             .mount("/", routes)
+            .attach(CORS)
             .launch()
             .await
     }
@@ -109,7 +123,7 @@ impl LambdaStrategyParamService {
         Ok(body)
     }
 
-    fn value_to_entries(value: &Value) -> Vec<KeyValueEntry> {
+    fn value_to_entries(value: &Value, group: &str) -> Vec<KeyValueEntry> {
         let mut entries: Vec<KeyValueEntry> = Vec::new();
         if let Some(obj) = value.as_object() {
             for (key, value) in obj {
@@ -117,6 +131,7 @@ impl LambdaStrategyParamService {
                     key: key.clone(),
                     value: value.clone(),
                     type_: KeyValueType::String,
+                    group: group.to_string(),
                 };
                 if value.is_boolean() {
                     entry.type_ = KeyValueType::Bool;
@@ -144,13 +159,14 @@ impl LambdaStrategyParamService {
         .await;
         match snapshot {
             Ok(value) => {
-                let entries = Self::value_to_entries(&value);
+                let entries = Self::value_to_entries(&value, "params");
                 let response =
                     serde_json::to_string(&entries).unwrap_or_else(|err| format!("{}", err));
-                Outcome::from(request, Json(response))
+                return Outcome::from(request, Json(response));
             }
-            Err(_) => Outcome::from(request, "Error"),
+            Err(err) => Outcome::from(request, format!("Error: {}", err)),
         }
+        // Outcome::from(request, "Error")
     }
 
     async fn update_param_entries<'r>(
@@ -198,14 +214,21 @@ impl LambdaStrategyParamService {
             &self.strategy_param_request_sender,
         )
         .await;
-        let _json = String::from("");
         match snapshot {
             Ok(value) => {
-                let json = value.to_string();
+                return match value {
+                    None => Outcome::from(request, Json("{}")),
+                    Some(value) => {
+                        let entries = Self::value_to_entries(&value, "states");
+                        let result = serde_json::to_string(&entries).unwrap();
+                        Outcome::from(request, Json(result))
+                    }
+                };
+                // let json = value.to_string();
                 // let entries = Self::value_to_entries(&value);
                 // let response =
                 //     serde_json::to_string(&value).unwrap_or_else(|err| format!("{}", err));
-                Outcome::from(request, Json(json))
+                // return Outcome::from(request, Json(json))
             }
             Err(_) => Outcome::from(request, "Error"),
         }

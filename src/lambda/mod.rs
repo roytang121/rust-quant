@@ -4,6 +4,7 @@ mod lambda_instance;
 mod param_service;
 
 pub use engine::engine;
+pub use lambda::SimpleHedger;
 pub use lambda_instance::{
     GenericLambdaInstanceConfig, LambdaInstance, LambdaInstanceConfig, LambdaParams,
 };

@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Serialize, Deserialize, Default)]
 pub struct Config {
     pub redis_url: String,
+    pub redis_ts_url: String,
     pub(crate) ftx_api_key: String,
     pub(crate) ftx_api_secret: String,
     pub(crate) ftx_sub_account: String,

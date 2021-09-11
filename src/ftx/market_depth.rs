@@ -97,9 +97,7 @@ pub async fn subscribe_message(
                         payload: serde_json::to_string(&snapshot)?,
                     };
 
-                    if let Err(err) =
-                        MessageBusUtils::publish_async(message_bus_sender, payload).await
-                    {
+                    if let Err(err) = message_bus_sender.send(payload).await {
                         log::error!("md process msg error: {}", err);
                     }
 

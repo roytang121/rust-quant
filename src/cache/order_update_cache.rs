@@ -7,8 +7,9 @@ use crate::model::{
 };
 use crate::pubsub::simple_message_bus::{MessageConsumer, RedisBackedMessageBus};
 use crate::pubsub::PublishPayload;
+use std::sync::Arc;
 
-type Cache = DashMap<String, OrderUpdate>;
+type Cache = Arc<DashMap<String, OrderUpdate>>;
 
 #[derive(Debug)]
 pub struct OrderUpdateCache {
@@ -18,7 +19,7 @@ pub struct OrderUpdateCache {
 impl OrderUpdateCache {
     pub fn new() -> OrderUpdateCache {
         OrderUpdateCache {
-            cache: DashMap::new(),
+            cache: Arc::new(DashMap::new()),
         }
     }
 
@@ -26,35 +27,34 @@ impl OrderUpdateCache {
         RedisBackedMessageBus::subscribe_channels(vec![PublishChannel::OrderUpdate.as_ref()], self)
             .await
     }
-}
 
-#[async_trait]
-impl MessageConsumer for OrderUpdateCache {
-    async fn consume(&self, msg: &mut str) -> anyhow::Result<()> {
-        let mut order_update = serde_json::from_str::<OrderUpdate>(msg)?;
-        log::info!("{:?}", order_update);
+    pub fn accept_order_update(cache: Cache, mut order_update: OrderUpdate) {
+        // let mut order_update = serde_json::from_slice::<OrderUpdate>(msg.as_slice()).unwrap();
+        log::debug!("{:?}", order_update);
         if order_update.has_cache_key() {
             let cache_key = order_update.cache_key();
             match order_update.status {
                 OrderStatus::Closed | OrderStatus::Failed => {
-                    self.cache.remove(&cache_key);
+                    cache.remove(&cache_key);
                 }
                 _ => {
-                    if self.cache.contains_key(cache_key.as_str()) {
-                        let cached_order = self.cache.get(cache_key.as_str()).unwrap();
+                    if cache.contains_key(cache_key.as_str()) {
+                        let cached_order = cache
+                            .get(cache_key.as_str())
+                            .expect("Failed to get cached_order");
                         match cached_order.status {
                             OrderStatus::PendingCancel => match order_update.status {
                                 OrderStatus::New | OrderStatus::Open => {
                                     order_update.status = OrderStatus::PendingCancel;
-                                    self.cache.insert(cache_key, order_update);
-                                    return Ok(());
+                                    cache.insert(cache_key, order_update);
+                                    return ();
                                 }
                                 _ => {}
                             },
                             _ => {}
                         }
                     }
-                    self.cache.insert(cache_key, order_update);
+                    cache.insert(cache_key, order_update);
                 }
             }
         } else {
@@ -63,58 +63,16 @@ impl MessageConsumer for OrderUpdateCache {
                 order_update
             );
         }
-        Ok(())
     }
 }
 
-impl OrderRequest {
-    pub async fn send_order(
-        order_update_cache: &OrderUpdateCacheInner,
-        message_bus_sender: &tokio::sync::mpsc::Sender<PublishPayload>,
-        order_request: OrderRequest,
-    ) -> Result<(), Box<dyn std::error::Error>> {
-        let payload = PublishPayload {
-            channel: PublishChannel::OrderRequest.to_string(),
-            payload: RedisBackedMessageBus::pack_json(&order_request)?,
-        };
-        let pending_order_update = OrderUpdate {
-            exchange: order_request.exchange.clone(),
-            id: -1,
-            client_id: Option::from(order_request.client_id),
-            market: order_request.market,
-            type_: order_request.type_,
-            side: order_request.side,
-            size: order_request.size,
-            price: order_request.price,
-            reduceOnly: false,
-            ioc: order_request.ioc,
-            postOnly: order_request.post_only,
-            status: OrderStatus::PendingNew,
-            filledSize: 0.0,
-            remainingSize: 0.0,
-            avgFillPrice: None,
-        };
-        order_update_cache.insert(pending_order_update.cache_key(), pending_order_update);
-        message_bus_sender.send(payload).await?;
-        Ok(())
-    }
-    pub async fn cancel_order(
-        order_update_cache: &OrderUpdateCacheInner,
-        message_bus_sender: &tokio::sync::mpsc::Sender<PublishPayload>,
-        client_id: &str,
-    ) -> Result<(), Box<dyn std::error::Error>> {
-        if let Some(mut order_update) = order_update_cache.get_mut(client_id) {
-            order_update.status = OrderStatus::PendingCancel
-        }
-        let cancel_order_request = CancelOrderRequest {
-            exchange: Exchanges::FTX,
-            client_id: client_id.to_string(),
-        };
-        let payload = PublishPayload {
-            channel: PublishChannel::CancelOrder.to_string(),
-            payload: RedisBackedMessageBus::pack_json(&cancel_order_request)?,
-        };
-        message_bus_sender.send(payload).await?;
+#[async_trait]
+impl MessageConsumer for OrderUpdateCache {
+    async fn consume(&self, msg: &[u8]) -> anyhow::Result<()> {
+        let mut order_update = serde_json::from_slice::<OrderUpdate>(msg)?;
+        // log::debug!("{:?}", msg);
+        let cache = self.cache.clone();
+        tokio::spawn(async move { Self::accept_order_update(cache, order_update) });
         Ok(())
     }
 }

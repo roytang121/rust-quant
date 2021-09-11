@@ -24,6 +24,7 @@ use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
 
 pub struct FtxOrderGateway {
     message_bus_sender: MessageBusSender,
+    client: Arc<FtxRestClient>,
 }
 
 #[derive(Error, Debug)]
@@ -32,17 +33,26 @@ enum OrderGatewayError {
     Unknown,
 }
 
+impl FtxOrderGateway {
+    pub fn new(
+        message_bus_sender: MessageBusSender,
+        client: Arc<FtxRestClient>,
+    ) -> FtxOrderGateway {
+        FtxOrderGateway {
+            message_bus_sender,
+            client,
+        }
+    }
+}
+
 #[async_trait]
 impl OrderGateway for FtxOrderGateway {
-    fn new(message_bus_sender: MessageBusSender) -> FtxOrderGateway {
-        FtxOrderGateway { message_bus_sender }
-    }
-
-    async fn subscribe(&self) -> Result<(), Box<dyn std::error::Error>> {
+    async fn subscribe(&self) -> anyhow::Result<()> {
         let order_update_service = FtxOrderUpdateService::new();
         let order_fill_service = FtxOrderFillService::new();
-        let order_request_service = FtxOrderRequestService::new(self.message_bus_sender.clone());
-        let cancel_order_service = FtxCancelOrderService::new();
+        let order_request_service =
+            FtxOrderRequestService::new(self.message_bus_sender.clone(), self.client.clone());
+        let cancel_order_service = FtxCancelOrderService::new(self.client.clone());
         tokio::select! {
             Err(err) = order_update_service.subscribe() => {
                 log::error!("order_update_service panic: {}", err)
@@ -57,7 +67,7 @@ impl OrderGateway for FtxOrderGateway {
                 log::error!("cancel_order_service panic: {}", err)
             },
         }
-        Ok(())
+        Err(anyhow!("FtxOrderGateway subscribe uncaught"))
     }
 }
 
@@ -209,74 +219,70 @@ impl FtxOrderFillService {
 }
 
 struct FtxOrderRequestService {
-    client: Arc<RwLock<FtxRestClient>>,
+    client: Arc<FtxRestClient>,
     message_bus_sender: MessageBusSender,
 }
 impl FtxOrderRequestService {
-    pub fn new(message_bus_sender: MessageBusSender) -> Self {
-        let client = Arc::new(RwLock::new(FtxRestClient::new()));
+    pub fn new(message_bus_sender: MessageBusSender, client: Arc<FtxRestClient>) -> Self {
         FtxOrderRequestService {
             client,
             message_bus_sender,
         }
     }
-    pub async fn subscribe(&self) -> Result<(), Box<dyn std::error::Error>> {
-        RedisBackedMessageBus::subscribe_channels(
-            vec![PublishChannel::OrderRequest.as_ref()],
-            self,
-        )
-        .await?;
-        Ok(())
+
+    pub async fn subscribe(&self) -> anyhow::Result<()> {
+        RedisBackedMessageBus::subscribe_channels(vec![PublishChannel::OrderRequest.as_ref()], self)
+            .await
     }
-    async fn accept_order_request(&self, order_request: OrderRequest) {
-        let client_ref = self.client.clone();
-        let message_bus_sender = self.message_bus_sender.clone();
-        // parallel
-        tokio::spawn(async move {
-            let original_request = order_request.clone();
-            let client = client_ref.read().await;
-            let api_result = client.place_order(order_request).await;
-            match api_result {
-                Ok(response) => {}
-                Err(_) => {
-                    // set OrderUpdate to Failed
-                    let failed_order_update = OrderUpdate {
-                        exchange: Exchanges::FTX,
-                        id: -1,
-                        client_id: original_request.client_id.clone(),
-                        market: original_request.market.clone(),
-                        type_: original_request.type_.clone(),
-                        side: original_request.side.clone(),
-                        size: original_request.size.clone(),
-                        price: original_request.price.clone(),
-                        reduceOnly: false,
-                        ioc: original_request.ioc.clone(),
-                        postOnly: original_request.post_only.clone(),
-                        status: OrderStatus::Failed,
-                        filledSize: 0.0,
-                        remainingSize: 0.0,
-                        avgFillPrice: None,
-                    };
-                    message_bus_sender
-                        .send(PublishPayload {
-                            channel: PublishChannel::OrderUpdate.to_string(),
-                            payload: RedisBackedMessageBus::pack_json(&failed_order_update)
-                                .unwrap(),
-                        })
-                        .await;
-                }
-            };
-        });
+
+    async fn accept_order_request(
+        message_bus_sender: MessageBusSender,
+        client: Arc<FtxRestClient>,
+        order_request: OrderRequest,
+    ) {
+        let original_request = order_request.clone();
+        let api_result = client.place_order(order_request).await;
+        match api_result {
+            Ok(response) => {}
+            Err(_) => {
+                // set OrderUpdate to Failed
+                let failed_order_update = OrderUpdate {
+                    exchange: Exchanges::FTX,
+                    id: -1,
+                    client_id: original_request.client_id.clone(),
+                    market: original_request.market.clone(),
+                    type_: original_request.type_.clone(),
+                    side: original_request.side.clone(),
+                    size: original_request.size.clone(),
+                    price: original_request.price.clone(),
+                    reduceOnly: false,
+                    ioc: original_request.ioc.clone(),
+                    postOnly: original_request.post_only.clone(),
+                    status: OrderStatus::Failed,
+                    filledSize: 0.0,
+                    remainingSize: 0.0,
+                    avgFillPrice: None,
+                };
+                message_bus_sender
+                    .send(PublishPayload {
+                        channel: PublishChannel::OrderUpdate.to_string(),
+                        payload: RedisBackedMessageBus::pack_json(&failed_order_update).unwrap(),
+                    })
+                    .await;
+            }
+        };
     }
 }
 #[async_trait]
 impl MessageConsumer for FtxOrderRequestService {
-    async fn consume(&self, msg: &mut str) -> anyhow::Result<()> {
-        match serde_json::from_str::<OrderRequest>(msg) {
+    async fn consume(&self, msg: &[u8]) -> anyhow::Result<()> {
+        match serde_json::from_slice::<OrderRequest>(msg) {
             Ok(order_request) => {
                 if order_request.exchange == Exchanges::FTX {
                     log::info!("FtxOrderRequestService: {:?}", order_request);
-                    self.accept_order_request(order_request).await;
+                    let mbs = self.message_bus_sender.clone();
+                    let client = self.client.clone();
+                    tokio::spawn(Self::accept_order_request(mbs, client, order_request));
                 }
             }
             Err(err) => {
@@ -288,11 +294,10 @@ impl MessageConsumer for FtxOrderRequestService {
 }
 
 struct FtxCancelOrderService {
-    client: Arc<RwLock<FtxRestClient>>,
+    client: Arc<FtxRestClient>,
 }
 impl FtxCancelOrderService {
-    pub fn new() -> Self {
-        let client = Arc::new(RwLock::new(FtxRestClient::new()));
+    pub fn new(client: Arc<FtxRestClient>) -> Self {
         FtxCancelOrderService { client }
     }
     pub async fn subscribe(&self) -> Result<(), Box<dyn std::error::Error>> {
@@ -300,29 +305,28 @@ impl FtxCancelOrderService {
             .await?;
         Ok(())
     }
-    async fn accept_cancel_order_request(&self, cancel_order_request: CancelOrderRequest) {
-        let client_ref = self.client.clone();
-        // parallel
-        tokio::spawn(async move {
-            let client = client_ref.read().await;
-            match client
-                .cancel_order_cid(cancel_order_request.client_id.as_str())
-                .await
-            {
-                Ok(_response) => {}
-                Err(_err) => {}
-            }
-        });
+    async fn accept_cancel_order_request(
+        client: Arc<FtxRestClient>,
+        cancel_order_request: CancelOrderRequest,
+    ) {
+        match client
+            .cancel_order_cid(cancel_order_request.client_id.as_str())
+            .await
+        {
+            Ok(_response) => {}
+            Err(_err) => {}
+        }
     }
 }
 #[async_trait]
 impl MessageConsumer for FtxCancelOrderService {
-    async fn consume(&self, msg: &mut str) -> anyhow::Result<()> {
-        match serde_json::from_str::<CancelOrderRequest>(msg) {
+    async fn consume(&self, msg: &[u8]) -> anyhow::Result<()> {
+        match serde_json::from_slice::<CancelOrderRequest>(msg) {
             Ok(order_request) => {
                 if order_request.exchange == Exchanges::FTX {
                     log::info!("FtxCancelOrderService: {:?}", order_request);
-                    self.accept_cancel_order_request(order_request).await;
+                    let client = self.client.clone();
+                    tokio::spawn(Self::accept_cancel_order_request(client, order_request));
                 }
             }
             Err(err) => {

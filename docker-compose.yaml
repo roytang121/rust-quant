@@ -25,6 +25,11 @@ services:
     ports:
       - 5050:80
 
+  redis:
+    image: redis:latest
+    ports:
+      - 10400:6379
+
   redis-ts:
     image: redislabs/redistimeseries
     ports:
@@ -34,7 +39,7 @@ services:
     container_name: grafana
     image: grafana/grafana:latest
     ports:
-      - '3000:3000'
+      - '10600:3000'
     environment:
       - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
       - GF_AUTH_ANONYMOUS_ENABLED=true

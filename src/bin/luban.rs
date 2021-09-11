@@ -5,7 +5,7 @@ use std::error::Error;
 
 use rust_quant::lambda::GenericLambdaInstanceConfig;
 
-#[tokio::main]
+#[tokio::main(flavor = "multi_thread")]
 async fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
     let args: Vec<String> = std::env::args().collect();

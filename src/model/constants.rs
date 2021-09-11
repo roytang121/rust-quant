@@ -10,6 +10,7 @@ pub enum Exchanges {
     FTX,
     BINANCE,
     OKEX,
+    Unknown,
 }
 
 #[derive(

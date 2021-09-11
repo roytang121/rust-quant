@@ -1,6 +1,4 @@
-
 use crate::lambda::LambdaState;
-
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct SwapMMInitParams {
@@ -10,32 +8,27 @@ pub struct SwapMMInitParams {
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
 pub struct SwapMMStrategyParams {
-    pub min_level: i32,
+    pub min_level: i64,
+    pub min_basis: f64,
+    pub base_size: f64,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
 pub struct SwapMMStrategyStateStruct {
+    #[serde(rename = "_state")]
     pub state: LambdaState,
-    pub bid_px: Option<f64>,
-    pub ask_px: Option<f64>,
-    pub bid_level: Option<i32>,
-    pub ask_level: Option<i32>,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub enum StrategyStateEnum {
-    None,
-    Value(serde_json::Value),
-}
-impl ToString for StrategyStateEnum {
-    fn to_string(&self) -> String {
-        match self {
-            StrategyStateEnum::None => {
-                "{}".to_string()
-            }
-            StrategyStateEnum::Value(value) => {
-                serde_json::to_string(value).unwrap()
-            }
-        }
-    }
+    pub target_bid_px: Option<f64>,
+    pub target_ask_px: Option<f64>,
+    pub target_bid_level: Option<i64>,
+    pub target_ask_level: Option<i64>,
+    pub open_bid_px: Option<f64>,
+    pub open_ask_px: Option<f64>,
+    pub open_bid_level: Option<i64>,
+    pub open_ask_level: Option<i64>,
+    pub enable_buy: bool,
+    pub enable_sell: bool,
+    pub depth_bid_px: Option<f64>,
+    pub depth_ask_px: Option<f64>,
+    pub bid_basis_bp: Option<f64>,
+    pub ask_basis_bp: Option<f64>,
 }

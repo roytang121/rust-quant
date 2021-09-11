@@ -69,8 +69,8 @@ impl MarketDepthCache {
 
 #[async_trait::async_trait]
 impl MessageConsumer for MarketDepthCache {
-    async fn consume(&self, msg: &mut str) -> anyhow::Result<()> {
-        match serde_json::from_str::<MarketDepth>(msg) {
+    async fn consume(&self, msg: &[u8]) -> anyhow::Result<()> {
+        match serde_json::from_slice::<MarketDepth>(msg) {
             Ok(md) => {
                 self.cache.insert(md.market.to_string(), md);
             }

@@ -7,7 +7,9 @@ use crate::core::OrderGateway;
 use crate::ftx::ftx_order_gateway::FtxOrderGateway;
 use crate::lambda::lambda::Lambda;
 
+use crate::ftx::FtxRestClient;
 use crate::lambda::lambda_instance::GenericLambdaInstanceConfig;
+use crate::model::MeasurementCache;
 use crate::pubsub::simple_message_bus::{MessageBusSender, RedisBackedMessageBus};
 use crate::pubsub::SubscribeMarketDepthRequest;
 use std::time::Duration;
@@ -37,7 +39,9 @@ pub async fn thread_order_gateway(message_bus_sender: MessageBusSender) -> anyho
     // order gateway
     tokio::spawn(async move {
         loop {
-            let ftx_order_gateway = FtxOrderGateway::new(message_bus_sender.clone());
+            let client = Arc::new(FtxRestClient::new());
+            let ftx_order_gateway =
+                FtxOrderGateway::new(message_bus_sender.clone(), client.clone());
             tokio::select! {
                 Err(err) = ftx_order_gateway.subscribe() => {
                     error!("ftx_order_gateway: {}", err);
@@ -66,12 +70,15 @@ pub async fn engine(instance_config: GenericLambdaInstanceConfig) {
     let mut message_bus = RedisBackedMessageBus::new().await.unwrap();
     let message_bus_sender = message_bus.publish_tx.clone();
 
+    let measurement_cache = Arc::new(MeasurementCache::new().await);
+
     // lambda
     let lambda = Lambda::new(
         instance_config,
-        &market_depth_cache,
-        &order_update_cache,
+        market_depth_cache.clone(),
+        order_update_cache.clone(),
         message_bus_sender.clone(),
+        measurement_cache.clone(),
     );
 
     tokio::select! {
@@ -87,6 +94,8 @@ pub async fn engine(instance_config: GenericLambdaInstanceConfig) {
         result = lambda.subscribe() => {
             log::error!("lambda completed: {:?}", result)
         },
-        _ = message_bus.subscribe() => {},
+        result = message_bus.subscribe() => {
+            log::error!("message_bus completed: {:?}", result)
+        },
     }
 }

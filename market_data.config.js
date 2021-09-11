@@ -7,7 +7,7 @@ module.exports = {
     {
       name: "ticker ETH-PERP",
       script: "./target/release/market_data",
-      args: "ftx ticker ETH-PERP",
+      args: "ftx marketdepth ETH-PERP",
       env_production,
     },
     {

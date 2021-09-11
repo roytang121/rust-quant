@@ -21,8 +21,8 @@ impl MessageBusUtils {
 
 #[derive(Debug, Clone)]
 pub struct PublishPayload {
-    pub(crate) channel: String,
-    pub(crate) payload: String,
+    pub channel: String,
+    pub payload: String,
 }
 
 #[derive(Debug, Clone)]

@@ -153,7 +153,7 @@ impl FtxOrderFill {
 pub struct FtxPlaceOrder {
     pub market: String,
     pub side: FtxOrderSide,
-    pub price: f64,
+    pub price: Option<f64>,
     #[serde(rename(deserialize = "type"))]
     pub type_: FtxOrderType,
     pub size: f64,
@@ -170,7 +170,10 @@ impl FtxPlaceOrder {
                 OrderSide::Buy => FtxOrderSide::buy,
                 OrderSide::Sell => FtxOrderSide::sell,
             },
-            price: or.price,
+            price: match or.type_ {
+                OrderType::Limit => Some(or.price),
+                OrderType::Market => None,
+            },
             type_: match or.type_ {
                 OrderType::Limit => FtxOrderType::limit,
                 OrderType::Market => FtxOrderType::market,
