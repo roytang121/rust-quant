@@ -67,7 +67,7 @@ pub async fn engine(instance_config: GenericLambdaInstanceConfig) {
     let order_update_cache = Arc::new(OrderUpdateCache::new());
 
     // message bus
-    let mut message_bus = RedisBackedMessageBus::new().await.unwrap();
+    let message_bus = RedisBackedMessageBus::new().await.unwrap();
     let message_bus_sender = message_bus.publish_tx.clone();
 
     let measurement_cache = Arc::new(MeasurementCache::new().await);

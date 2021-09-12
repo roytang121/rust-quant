@@ -10,24 +10,24 @@ use crate::lambda::{
 };
 
 use crate::model::{
-    Instrument, InstrumentSymbol, Measurement, MeasurementCache, OrderFill, OrderSide, OrderStatus,
-    OrderType, OrderUpdate, TSOptions,
+    Instrument, InstrumentSymbol, MeasurementCache, OrderFill, OrderSide, OrderStatus,
+    OrderType, OrderUpdate,
 };
 use crate::pubsub::PublishPayload;
 
 use rocket::tokio::sync::mpsc::error::SendError;
 
 use crate::cache::OrderUpdateCache;
-use crate::model::constants::PublishChannel::OrderRequest;
+
 use crate::pubsub::simple_message_bus::TypedMessageConsumer;
-use dashmap::mapref::one::{Ref, RefMut};
+use dashmap::mapref::one::{RefMut};
 use dashmap::{DashMap, DashSet};
-use serde_json::Value;
+
 use std::collections::hash_map::RandomState;
-use std::ops::Deref;
+
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
+
 
 type InitParams = SwapMMInitParams;
 type StrategyParams = SwapMMStrategyParams;
@@ -268,7 +268,7 @@ impl Lambda {
         let params = self.get_strategy_params();
         if open_orders.is_empty() {
             let state = self.get_strategy_state();
-            if let (Some(depth_bid_px), Some(target_bid_px), Some(target_bid_level)) = (
+            if let (Some(_depth_bid_px), Some(target_bid_px), Some(target_bid_level)) = (
                 state.depth_bid_px,
                 state.target_bid_px,
                 state.target_bid_level,

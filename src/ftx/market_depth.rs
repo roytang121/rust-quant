@@ -13,7 +13,7 @@ use crate::ftx::utils::{connect_ftx, ping_pong};
 use crate::model::constants::{Exchanges, PublishChannel};
 use crate::model::market_data_model::{MarketDepth, PriceLevel};
 use crate::pubsub::simple_message_bus::RedisBackedMessageBus;
-use crate::pubsub::{MessageBusUtils, PublishPayload};
+use crate::pubsub::{PublishPayload};
 
 pub fn process_orderbook_update(
     update: &FtxOrderBookData,
@@ -135,7 +135,7 @@ pub async fn market_depth(market: &str) -> Result<(), Box<dyn std::error::Error>
         .forward(write);
 
     // message bus instance
-    let mut message_bus = RedisBackedMessageBus::new().await?;
+    let message_bus = RedisBackedMessageBus::new().await?;
     let message_bus_sender = message_bus.publish_tx.clone();
     // init message
     let init_message = json!({

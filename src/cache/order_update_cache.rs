@@ -1,12 +1,12 @@
 use async_trait::async_trait;
 use dashmap::DashMap;
 
-use crate::model::constants::{Exchanges, PublishChannel};
+use crate::model::constants::{PublishChannel};
 use crate::model::{
-    CancelOrderRequest, OrderRequest, OrderStatus, OrderUpdate, OrderUpdateCacheInner,
+    OrderStatus, OrderUpdate,
 };
 use crate::pubsub::simple_message_bus::{MessageConsumer, RedisBackedMessageBus};
-use crate::pubsub::PublishPayload;
+
 use std::sync::Arc;
 
 type Cache = Arc<DashMap<String, OrderUpdate>>;
@@ -69,7 +69,7 @@ impl OrderUpdateCache {
 #[async_trait]
 impl MessageConsumer for OrderUpdateCache {
     async fn consume(&self, msg: &[u8]) -> anyhow::Result<()> {
-        let mut order_update = serde_json::from_slice::<OrderUpdate>(msg)?;
+        let order_update = serde_json::from_slice::<OrderUpdate>(msg)?;
         // log::debug!("{:?}", msg);
         let cache = self.cache.clone();
         tokio::spawn(async move { Self::accept_order_update(cache, order_update) });

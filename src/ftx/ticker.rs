@@ -1,7 +1,7 @@
 use std::error::Error;
 
 use futures_util::stream::SplitStream;
-use futures_util::{AsyncWrite, SinkExt, StreamExt, TryFutureExt};
+use futures_util::{SinkExt, StreamExt};
 use redis::aio::Connection;
 use serde_json::{json, Value};
 use tokio::net::TcpStream;

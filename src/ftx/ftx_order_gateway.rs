@@ -17,7 +17,7 @@ use std::sync::Arc;
 use crate::pubsub::PublishPayload;
 use thiserror::Error;
 use tokio::net::TcpStream;
-use tokio::sync::RwLock;
+
 use tokio_stream::wrappers::ReceiverStream;
 use tokio_tungstenite::tungstenite::Message;
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
@@ -81,7 +81,7 @@ impl FtxOrderUpdateService {
         &self,
         stream: &mut SplitStream<WebSocketStream<MaybeTlsStream<TcpStream>>>,
     ) -> anyhow::Result<()> {
-        let mut redis = RedisBackedMessageBus::new().await?;
+        let redis = RedisBackedMessageBus::new().await?;
         while let Some(msg) = stream.next().await {
             let msg = msg?;
             let response = serde_json::from_str::<WebSocketResponse<FtxOrderData>>(
@@ -154,7 +154,7 @@ impl FtxOrderFillService {
         &self,
         stream: &mut SplitStream<WebSocketStream<MaybeTlsStream<TcpStream>>>,
     ) -> anyhow::Result<()> {
-        let mut redis = RedisBackedMessageBus::new().await?;
+        let redis = RedisBackedMessageBus::new().await?;
         while let Some(msg) = stream.next().await {
             let msg = msg?;
             let response = serde_json::from_str::<WebSocketResponse<FtxOrderFill>>(
@@ -243,7 +243,7 @@ impl FtxOrderRequestService {
         let original_request = order_request.clone();
         let api_result = client.place_order(order_request).await;
         match api_result {
-            Ok(response) => {}
+            Ok(_response) => {}
             Err(_) => {
                 // set OrderUpdate to Failed
                 let failed_order_update = OrderUpdate {

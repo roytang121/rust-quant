@@ -2,7 +2,7 @@ use crate::core::config::ConfigStore;
 use crate::pubsub::{MessageBus, PublishPayload};
 use async_trait::async_trait;
 use futures_util::StreamExt;
-use redis::{AsyncCommands, Msg, RedisError};
+use redis::{AsyncCommands, Msg};
 use serde::Serialize;
 
 use std::sync::Arc;
@@ -89,7 +89,7 @@ impl RedisBackedMessageBus {
         let mut stream = pubsub.on_message();
         while let Some(msg) = stream.next().await {
             let msg: Msg = msg;
-            let mut payload = msg.get_payload_bytes();
+            let payload = msg.get_payload_bytes();
             consumer.consume(payload).await?;
         }
         Err(anyhow!("subscribe_channels uncaught error"))
