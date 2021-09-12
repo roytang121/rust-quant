@@ -15,3 +15,4 @@ hedge_symbol = 'ETH/USD.FTX'
 min_level = 5
 min_basis = 3.0
 base_size = 0.001
+target_acc_size = 31.0

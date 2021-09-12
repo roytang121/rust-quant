@@ -20,7 +20,7 @@ use rocket::tokio::sync::mpsc::error::SendError;
 use crate::cache::OrderUpdateCache;
 use crate::model::constants::PublishChannel::OrderRequest;
 use crate::pubsub::simple_message_bus::TypedMessageConsumer;
-use dashmap::mapref::one::Ref;
+use dashmap::mapref::one::{Ref, RefMut};
 use dashmap::{DashMap, DashSet};
 use serde_json::Value;
 use std::collections::hash_map::RandomState;
@@ -107,6 +107,10 @@ impl Lambda {
         let state = self.strategy_state.get(String::default().as_str()).unwrap();
         state.value().clone()
     }
+
+    fn write_strategy_state(&self) -> Option<RefMut<'_, String, StrategyState, RandomState>> {
+        self.strategy_state.get_mut(String::default().as_str())
+    }
     //
     // async fn write_strategy_state(&self) -> RwLockWriteGuard<'_, StrategyState> {
     //     self.strategy_state.write().await
@@ -136,14 +140,14 @@ impl Lambda {
                 .market_depth
                 .get_clone(self.depth_instrument.market.as_str())
             {
-                let targe_size = 31.0f64;
+                let target_size = 31.0f64;
 
                 let mut sum_bid_size = 0.0f64;
                 let mut target_bid_price = 0.0f64;
                 let mut target_bid_level = 0i64;
                 for level in md.bids.iter() {
                     sum_bid_size += level.size;
-                    if sum_bid_size >= targe_size {
+                    if sum_bid_size >= target_size {
                         target_bid_price = level.price;
                         break;
                     }
@@ -155,7 +159,7 @@ impl Lambda {
                 let mut target_ask_level = 0i64;
                 for level in md.asks.iter() {
                     sum_ask_size += level.size;
-                    if sum_ask_size >= targe_size {
+                    if sum_ask_size >= target_size {
                         target_ask_price = level.price;
                         break;
                     }
@@ -171,23 +175,20 @@ impl Lambda {
                 let ask_basis_bp =
                     ((target_ask_price - md.asks[0].price) / md.bids[0].price) * 10000.0;
 
-                let mut state = self
-                    .strategy_state
-                    .get_mut(String::default().as_str())
-                    .unwrap();
-                state.target_bid_px = Some(target_bid_price);
-                state.target_ask_px = Some(target_ask_price);
-                state.target_bid_level = Some(target_bid_level);
-                state.target_ask_level = Some(target_ask_level);
-                state.bid_basis_bp = Some(bid_basis_bp);
-                state.ask_basis_bp = Some(ask_basis_bp);
-                if let Some(bid_0) = md.bids.get(0) {
-                    state.depth_bid_px = Some(bid_0.price)
+                if let Some(mut state) = self.write_strategy_state() {
+                    state.target_bid_px = Some(target_bid_price);
+                    state.target_ask_px = Some(target_ask_price);
+                    state.target_bid_level = Some(target_bid_level);
+                    state.target_ask_level = Some(target_ask_level);
+                    state.bid_basis_bp = Some(bid_basis_bp);
+                    state.ask_basis_bp = Some(ask_basis_bp);
+                    if let Some(bid_0) = md.bids.get(0) {
+                        state.depth_bid_px = Some(bid_0.price)
+                    }
+                    if let Some(ask_0) = md.asks.get(0) {
+                        state.depth_ask_px = Some(ask_0.price)
+                    }
                 }
-                if let Some(ask_0) = md.asks.get(0) {
-                    state.depth_ask_px = Some(ask_0.price)
-                }
-                drop(state);
             } else {
                 if let Some(mut state) = self.strategy_state.get_mut(String::default().as_str()) {
                     state.depth_bid_px = None;

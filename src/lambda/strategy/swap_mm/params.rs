@@ -11,6 +11,7 @@ pub struct SwapMMStrategyParams {
     pub min_level: i64,
     pub min_basis: f64,
     pub base_size: f64,
+    pub target_acc_size: f64,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
