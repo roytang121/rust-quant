@@ -1,8 +1,7 @@
 use crate::core::config::ConfigStore;
 use crate::model::constants::Exchanges;
 use crate::model::OrderSide;
-use redis::{AsyncCommands};
-
+use redis::AsyncCommands;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct TSOptions {

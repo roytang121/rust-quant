@@ -1,10 +1,8 @@
 use async_trait::async_trait;
 use dashmap::DashMap;
 
-use crate::model::constants::{PublishChannel};
-use crate::model::{
-    OrderStatus, OrderUpdate,
-};
+use crate::model::constants::PublishChannel;
+use crate::model::{OrderStatus, OrderUpdate};
 use crate::pubsub::simple_message_bus::{MessageConsumer, RedisBackedMessageBus};
 
 use std::sync::Arc;

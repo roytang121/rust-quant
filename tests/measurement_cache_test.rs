@@ -1,6 +1,4 @@
 #[cfg(test)]
-
-
 #[cfg(test)]
 mod test_common;
 

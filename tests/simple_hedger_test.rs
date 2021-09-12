@@ -1,5 +1,4 @@
 #[cfg(test)]
-
 use rust_quant::lambda::SimpleHedger;
 use std::sync::Arc;
 
@@ -21,7 +20,7 @@ mod simple_hedger_test {
     use rust_quant::lambda::SimpleHedger;
     use rust_quant::model::constants::Exchanges;
     use rust_quant::model::{Instrument, OrderFill, OrderSide};
-    use rust_quant::pubsub::simple_message_bus::{RedisBackedMessageBus};
+    use rust_quant::pubsub::simple_message_bus::RedisBackedMessageBus;
     use std::sync::Arc;
     use test_common::common::*;
 

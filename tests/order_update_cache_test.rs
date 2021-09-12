@@ -1,22 +1,20 @@
 #[cfg(test)]
-
 #[cfg(test)]
 mod test_common;
 
 #[cfg(test)]
 mod order_update_cache_test {
     use super::*;
-    
-    
+
     use rust_quant::cache::OrderUpdateCache;
-    
-    use rust_quant::model::constants::{PublishChannel};
-    use rust_quant::model::{OrderStatus};
-    use rust_quant::pubsub::simple_message_bus::{RedisBackedMessageBus};
+
+    use rust_quant::model::constants::PublishChannel;
+    use rust_quant::model::OrderStatus;
+    use rust_quant::pubsub::simple_message_bus::RedisBackedMessageBus;
     use rust_quant::pubsub::PublishPayload;
-    
+
     use std::sync::Arc;
-    
+
     use test_common::common::*;
 
     #[tokio::test]

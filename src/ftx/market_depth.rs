@@ -13,7 +13,7 @@ use crate::ftx::utils::{connect_ftx, ping_pong};
 use crate::model::constants::{Exchanges, PublishChannel};
 use crate::model::market_data_model::{MarketDepth, PriceLevel};
 use crate::pubsub::simple_message_bus::RedisBackedMessageBus;
-use crate::pubsub::{PublishPayload};
+use crate::pubsub::PublishPayload;
 
 pub fn process_orderbook_update(
     update: &FtxOrderBookData,

@@ -10,8 +10,8 @@ use crate::lambda::{
 };
 
 use crate::model::{
-    Instrument, InstrumentSymbol, MeasurementCache, OrderFill, OrderSide, OrderStatus,
-    OrderType, OrderUpdate,
+    Instrument, InstrumentSymbol, MeasurementCache, OrderFill, OrderSide, OrderStatus, OrderType,
+    OrderUpdate,
 };
 use crate::pubsub::PublishPayload;
 
@@ -20,14 +20,13 @@ use rocket::tokio::sync::mpsc::error::SendError;
 use crate::cache::OrderUpdateCache;
 
 use crate::pubsub::simple_message_bus::TypedMessageConsumer;
-use dashmap::mapref::one::{RefMut};
+use dashmap::mapref::one::RefMut;
 use dashmap::{DashMap, DashSet};
 
 use std::collections::hash_map::RandomState;
 
 use std::sync::Arc;
 use std::time::Duration;
-
 
 type InitParams = SwapMMInitParams;
 type StrategyParams = SwapMMStrategyParams;
