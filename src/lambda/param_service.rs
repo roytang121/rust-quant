@@ -94,7 +94,6 @@ impl LambdaStrategyParamService {
             rocket::route::Route::new(Method::Post, "/params", self.route(MyRoute::UpdateParam)),
             rocket::route::Route::new(Method::Get, "/states", self.route(MyRoute::GetState)),
         ];
-
         rocket::build()
             .configure(config)
             .mount("/", routes)
