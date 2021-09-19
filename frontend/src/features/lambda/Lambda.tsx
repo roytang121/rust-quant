@@ -16,9 +16,11 @@ const Lambda = ({ host }: Props) => {
   const [entries, setEntries] = useState<LamabdaParamEntry[]>([]);
   useEffect(() => {
     const sub = timer(0, 1000).subscribe(async (_) => {
-      const response = await api.getStates();
-      const entries: LamabdaParamEntry[] = await response.json();
-      setEntries(entries);
+      const state_response = await api.getStates();
+      const params_response = await api.getParams();
+      const states: LamabdaParamEntry[] = await state_response.json();
+      const params: LamabdaParamEntry[] = await params_response.json();
+      setEntries([...states, ...params]);
     });
     return () => sub.unsubscribe();
   }, [api]);

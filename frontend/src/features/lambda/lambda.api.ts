@@ -6,8 +6,9 @@ const LambdaApi = (baseURL: string) => {
   });
 
   const getStates = () => client.get(`states`);
+  const getParams = () => client.get(`params`);
 
-  return { getStates };
+  return { getStates, getParams };
 };
 
 export default LambdaApi;

@@ -5,7 +5,7 @@ import Lambda from "./features/lambda/Lambda";
 const App: FC = () => {
   return (
     <div
-      className="bp3 bp3-dark ag-theme-alpine-dark"
+      className="bp3 bp3-dark ag-theme-balham-dark"
       style={{ display: "flex", flexDirection: "column", height: "100%" }}
     >
       <Navbar>
