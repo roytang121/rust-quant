@@ -35,8 +35,8 @@ strum_macros = "0.21.1"
 thiserror = "1.0.28"
 tokio = { version = "1.10.0", features = ['full'] }
 tokio-stream = "0.1.7"
-tokio-tungstenite = { version = "0.15.0", features = ['native-tls'] }
-tungstenite = { version = "0.14.0", features = ["native-tls"] }
+tokio-tungstenite = { version = "0.15.0", features = ['rustls-tls'] }
+tungstenite = { version = "0.14.0", features = ["rustls-tls"] }
 url = "2.2.2"
 uuid = { version = "0.8.2", features = ["v4"] }
 

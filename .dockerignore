@@ -1,0 +1,6 @@
+frontend
+frontend/**/*
+target
+target/**/*
+.idea
+environments

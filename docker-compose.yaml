@@ -35,6 +35,18 @@ services:
     ports:
       - 10500:6379
 
+  lambda_engine:
+    build:
+      context: .
+      dockerfile: lambda_engine.Dockerfile
+    command: luban swap-mm-ethusd
+    volumes:
+      - ./environments:/app/environments
+    environment:
+      - ENV=development
+    ports:
+      - 6008:6008
+
   grafana:
     container_name: grafana
     image: grafana/grafana:latest
