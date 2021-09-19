@@ -5,6 +5,8 @@ import { timer } from "rxjs";
 import LambdaApi from "./lambda.api";
 import { LamabdaParamEntry } from "./lambda.types";
 
+import "ag-grid-enterprise";
+
 interface Props {
   host: string;
 }
@@ -23,10 +25,10 @@ const Lambda = ({ host }: Props) => {
 
   const colDefs = useMemo((): ColDef[] => {
     return [
-      { field: "group" },
+      { field: "group", enableRowGroup: true, rowGroup: true, hide: true },
       { field: "key" },
+      { field: "value", editable: true },
       { field: "type" },
-      { field: "value" },
     ];
   }, []);
 
@@ -38,6 +40,7 @@ const Lambda = ({ host }: Props) => {
       columnDefs={colDefs}
       rowData={entries}
       getRowNodeId={getRowId}
+      groupDefaultExpanded={1}
     />
   );
 };
