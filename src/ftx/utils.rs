@@ -66,7 +66,11 @@ pub fn generate_signature(secret: &str, ts: i64) -> String {
     return hex::encode(result);
 }
 
-//e62b38837bc68b5d22dce1b8efa66a3df02b59cc31be4dcf919c1052056c5caa
-//fb13790d9ce2f45303c0a19651ac2292d8bd1ad904440b5b2de3032b34ac6aaf
-//1629725859555
-//1629725644552
+/// 1   ->  1.0
+/// 1.2 ->  1.2
+pub fn format_float(val: &f64) -> String {
+    match val.fract() > 0.0 {
+        true => val.to_string(),
+        false => val.to_string() + ".0",
+    }
+}

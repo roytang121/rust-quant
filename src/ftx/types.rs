@@ -51,7 +51,7 @@ pub struct FtxOrderBookData {
     pub action: WebSocketResponseType,
     pub bids: Vec<[f64; 2]>,
     pub asks: Vec<[f64; 2]>,
-    pub checksum: u64,
+    pub checksum: u32,
     pub time: f64,
 }
 
