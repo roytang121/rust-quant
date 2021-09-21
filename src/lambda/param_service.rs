@@ -90,8 +90,11 @@ impl LambdaStrategyParamService {
             ..rocket::Config::debug_default()
         };
         let routes = vec![
+            // params
             rocket::route::Route::new(Method::Get, "/params", self.route(MyRoute::GetParam)),
+            rocket::route::Route::new(Method::Options, "/params", self.route(MyRoute::None)),
             rocket::route::Route::new(Method::Post, "/params", self.route(MyRoute::UpdateParam)),
+            // states
             rocket::route::Route::new(Method::Get, "/states", self.route(MyRoute::GetState)),
         ];
         rocket::build()
