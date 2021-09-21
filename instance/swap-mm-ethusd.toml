@@ -12,7 +12,8 @@ depth_symbol = 'ETH-PERP.FTX'
 hedge_symbol = 'ETH/USD.FTX'
 
 [strategy_params]
-min_level = 5
-min_basis = 3.0
 base_size = 0.001
+min_basis = 3.0
+min_level = 5
+state = 'Init'
 target_acc_size = 31.0
