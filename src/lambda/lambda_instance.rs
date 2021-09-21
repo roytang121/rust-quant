@@ -9,6 +9,7 @@ use dashmap::DashMap;
 
 use std::fmt::Debug;
 use tokio::sync::RwLock;
+use crate::lambda::LambdaState;
 
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]
 pub struct LambdaParams {
@@ -37,6 +38,8 @@ impl LambdaInstanceConfig {
             panic!("config name != instance_name")
         }
         config.name = instance_name.to_string();
+        config.strategy_params["state"] = Value::String(LambdaState::Init.to_string());
+        config.save();
         config
     }
     pub fn save(&self) -> Result<(), ConfyError> {
