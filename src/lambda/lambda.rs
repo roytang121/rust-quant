@@ -221,17 +221,15 @@ impl Lambda {
     }
 
     fn should_run_trading(&self) -> bool {
-        match self.strategy_state.get(String::default().as_str()) {
-            None => false,
-            Some(state) => match state.state {
-                LambdaState::Init
-                | LambdaState::Paused
-                | LambdaState::Stopped
-                | LambdaState::AutoPaused => {
-                    return false;
-                }
-                LambdaState::Live => return true,
-            },
+        let params = self.get_strategy_params();
+        return match params.state {
+            LambdaState::Init
+            | LambdaState::Paused
+            | LambdaState::Stopped
+            | LambdaState::AutoPaused => {
+                false
+            }
+            LambdaState::Live => true,
         }
     }
 
@@ -293,6 +291,9 @@ impl Lambda {
         tokio::select! {
             result = self.period_update() => {
                 panic!("lambda update panic: {:?}", result)
+            }
+            result = self.period_run_trading() => {
+                panic!("lambda period_run_trading panic: {:?}", result)
             }
             result = self.period_publish_state() => {
                 panic!("period_publish_state panic: {:?}", result)

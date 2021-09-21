@@ -8,6 +8,7 @@ pub struct SwapMMInitParams {
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
 pub struct SwapMMStrategyParams {
+    pub state: LambdaState,
     pub min_level: i64,
     pub min_basis: f64,
     pub base_size: f64,
@@ -16,8 +17,6 @@ pub struct SwapMMStrategyParams {
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
 pub struct SwapMMStrategyStateStruct {
-    #[serde(rename = "_state")]
-    pub state: LambdaState,
     pub target_bid_px: Option<f64>,
     pub target_ask_px: Option<f64>,
     pub target_bid_level: Option<i64>,
