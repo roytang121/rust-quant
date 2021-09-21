@@ -45,7 +45,7 @@ mod ftx_test {
         assert!(matches!(fo.type_, FtxOrderType::limit));
         assert_eq!(fo.postOnly, true);
         assert_eq!(fo.ioc, true);
-        assert_eq!(fo.price, None);
-        assert!(matches!(fo.side, FtxOrderSide::buy))
+        assert_eq!(fo.price, Some(10.0));
+        assert!(matches!(fo.side, FtxOrderSide::sell))
     }
 }
