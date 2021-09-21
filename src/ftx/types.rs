@@ -154,7 +154,7 @@ pub struct FtxPlaceOrder {
     pub market: String,
     pub side: FtxOrderSide,
     pub price: Option<f64>,
-    #[serde(rename(deserialize = "type"))]
+    #[serde(rename = "type")]
     pub type_: FtxOrderType,
     pub size: f64,
     pub reduceOnly: bool,
@@ -180,8 +180,14 @@ impl FtxPlaceOrder {
             },
             size: or.size,
             reduceOnly: false,
-            ioc: or.ioc,
-            postOnly: or.post_only,
+            ioc: match or.type_ {
+                OrderType::Limit => or.ioc,
+                OrderType::Market => false,
+            },
+            postOnly: match or.type_ {
+                OrderType::Limit => or.post_only,
+                OrderType::Market => false,
+            } ,
             clientId: Option::from(or.client_id),
         }
     }
