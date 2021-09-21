@@ -187,7 +187,7 @@ impl FtxPlaceOrder {
             postOnly: match or.type_ {
                 OrderType::Limit => or.post_only,
                 OrderType::Market => false,
-            } ,
+            },
             clientId: Option::from(or.client_id),
         }
     }

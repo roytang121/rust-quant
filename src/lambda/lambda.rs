@@ -226,11 +226,9 @@ impl Lambda {
             LambdaState::Init
             | LambdaState::Paused
             | LambdaState::Stopped
-            | LambdaState::AutoPaused => {
-                false
-            }
+            | LambdaState::AutoPaused => false,
             LambdaState::Live => true,
-        }
+        };
     }
 
     async fn cancel_orders(&self) {
