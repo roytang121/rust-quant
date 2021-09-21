@@ -129,10 +129,10 @@ impl Instrument {
 
     pub async fn subscribe_order_update<T>(&self, consumer: &T) -> anyhow::Result<()>
     where
-        T: TypedMessageConsumer<OrderFill> + Sync,
+        T: TypedMessageConsumer<OrderUpdate> + Sync,
     {
         let order_update_filter =
-            OrderFillFilter(self.exchange.to_owned(), self.market.to_owned(), consumer);
+            OrderUpdateFilter(self.exchange.to_owned(), self.market.to_owned(), consumer);
         RedisBackedMessageBus::subscribe_channels(
             vec![PublishChannel::OrderUpdate.as_ref()],
             &order_update_filter,
