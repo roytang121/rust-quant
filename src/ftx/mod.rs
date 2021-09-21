@@ -7,3 +7,5 @@ mod types;
 mod utils;
 
 pub use rest::FtxRestClient;
+
+pub use types::{FtxPlaceOrder, FtxOrderType, FtxOrderSide, FtxOrderStatus};

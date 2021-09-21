@@ -27,7 +27,7 @@ pub enum FtxOrderStatus {
     open,
     closed,
 }
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, PartialEq)]
 #[allow(non_camel_case_types)]
 pub enum FtxOrderSide {
     buy,
@@ -161,6 +161,11 @@ pub struct FtxPlaceOrder {
     pub ioc: bool,
     pub postOnly: bool,
     pub clientId: Option<String>,
+}
+impl From<OrderRequest> for FtxPlaceOrder {
+    fn from(or: OrderRequest) -> Self {
+        Self::from_order_request(or)
+    }
 }
 impl FtxPlaceOrder {
     pub fn from_order_request(or: OrderRequest) -> Self {
