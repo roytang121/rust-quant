@@ -174,6 +174,10 @@ impl Lambda {
                 let ask_basis_bp =
                     ((target_ask_price - md.asks[0].price) / md.bids[0].price) * 10000.0;
 
+                let open_bid_orders = self.depth_instrument.get_open_buy_orders(true);
+                let open_bid_cnt = open_bid_orders.len();
+                let open_bid = open_bid_orders.get(0);
+
                 if let Some(mut state) = self.write_strategy_state() {
                     state.target_bid_px = Some(target_bid_price);
                     state.target_ask_px = Some(target_ask_price);
@@ -181,11 +185,18 @@ impl Lambda {
                     state.target_ask_level = Some(target_ask_level);
                     state.bid_basis_bp = Some(bid_basis_bp);
                     state.ask_basis_bp = Some(ask_basis_bp);
+                    state.open_bid_cnt = Some(open_bid_cnt);
                     if let Some(bid_0) = md.bids.get(0) {
                         state.depth_bid_px = Some(bid_0.price)
                     }
                     if let Some(ask_0) = md.asks.get(0) {
                         state.depth_ask_px = Some(ask_0.price)
+                    }
+                    match open_bid {
+                        None => {}
+                        Some(open_bid) => {
+                            state.open_bid_px = Some(open_bid.price);
+                        }
                     }
                 }
             } else {
@@ -239,7 +250,7 @@ impl Lambda {
 
         let state = self.get_strategy_state();
         if let (Some(open_bid_px), Some(target_bid_px)) = (state.open_bid_px, state.target_bid_px) {
-            if open_bid_px != target_bid_px {
+            if !open_buy_orders.is_empty() && open_bid_px != target_bid_px {
                 for order in open_buy_orders {
                     self.depth_instrument
                         .cancel_order(order.client_id.unwrap_or_default().as_str());
@@ -250,9 +261,13 @@ impl Lambda {
                     }
                 }
             }
-        } else {
-            if let Some(mut write_state) = self.strategy_state.get_mut(String::default().as_str()) {
-                write_state.enable_buy = false;
+        } else { // missing required states
+            if open_buy_orders.is_empty() { // if no open orders
+                if let Some(mut write_state) =
+                self.strategy_state.get_mut(String::default().as_str())
+                {
+                    write_state.enable_buy = true;
+                }
             }
         };
         drop(state)
@@ -263,12 +278,14 @@ impl Lambda {
         let params = self.get_strategy_params();
         if open_orders.is_empty() {
             let state = self.get_strategy_state();
-            if let (Some(_depth_bid_px), Some(target_bid_px), Some(target_bid_level)) = (
+            if let (Some(enable_buy), Some(_depth_bid_px), Some(target_bid_px), Some(target_bid_level), Some(bid_basis_bp)) = (
+                state.enable_buy,
                 state.depth_bid_px,
                 state.target_bid_px,
                 state.target_bid_level,
+                state.bid_basis_bp,
             ) {
-                if target_bid_level >= params.min_level && target_bid_px >= params.min_basis {
+                if enable_buy && target_bid_level >= params.min_level && bid_basis_bp <= -params.min_basis {
                     self.depth_instrument
                         .send_order(
                             OrderSide::Buy,

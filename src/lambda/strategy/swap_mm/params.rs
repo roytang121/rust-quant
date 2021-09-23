@@ -25,6 +25,8 @@ pub struct SwapMMStrategyStateStruct {
     pub open_ask_px: Option<f64>,
     pub open_bid_level: Option<i64>,
     pub open_ask_level: Option<i64>,
+    pub open_bid_cnt: Option<usize>,
+    pub open_ask_cnt: Option<usize>,
     pub enable_buy: bool,
     pub enable_sell: bool,
     pub depth_bid_px: Option<f64>,

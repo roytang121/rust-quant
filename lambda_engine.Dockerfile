@@ -1,9 +1,10 @@
 FROM rust:1.55.0
 
 WORKDIR /app
+COPY . .
 
-RUN cargo install miniserve
-CMD miniserve .
+# RUN cargo install miniserve
+# CMD miniserve .
 #COPY . .
 
 # RUN rm -rf environments

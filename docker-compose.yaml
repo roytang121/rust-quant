@@ -42,8 +42,8 @@ services:
 #    image: rust:1.55.0
 #    command: cargo run --bin luban swap-mm-ethusd
     working_dir: /app
-    volumes:
-      - ./:/app
+    # volumes:
+    #   - ./:/app
     environment:
       - ENV=development
     ports:

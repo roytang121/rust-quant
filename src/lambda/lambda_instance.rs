@@ -39,7 +39,7 @@ impl LambdaInstanceConfig {
         }
         config.name = instance_name.to_string();
         config.strategy_params["state"] = Value::String(LambdaState::Init.to_string());
-        config.save();
+        config.save().expect("Failed to save config_store");
         config
     }
     pub fn save(&self) -> Result<(), ConfyError> {
