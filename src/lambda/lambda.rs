@@ -247,7 +247,7 @@ impl Lambda {
     async fn cancel_orders(&self) {
         let open_buy_orders = self.depth_instrument.get_open_buy_orders(false);
         if open_buy_orders.len() > 1 {
-            error!("depth_instrument open_buy_orders > 1");
+            panic!("depth_instrument open_buy_orders > 1");
         }
 
         let open_bid = open_buy_orders.get(0);
