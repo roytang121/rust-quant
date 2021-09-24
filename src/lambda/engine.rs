@@ -5,7 +5,6 @@ use crate::cache::OrderUpdateCache;
 
 use crate::core::OrderGateway;
 use crate::ftx::ftx_order_gateway::FtxOrderGateway;
-use crate::lambda::lambda::Lambda;
 
 use crate::ftx::FtxRestClient;
 use crate::lambda::lambda_instance::GenericLambdaInstanceConfig;
@@ -13,6 +12,7 @@ use crate::model::MeasurementCache;
 use crate::pubsub::simple_message_bus::{MessageBusSender, RedisBackedMessageBus};
 use crate::pubsub::SubscribeMarketDepthRequest;
 use std::time::Duration;
+use crate::lambda::Lambda;
 
 pub async fn thread_order_update_cache(
     order_update_cache: Arc<OrderUpdateCache>,

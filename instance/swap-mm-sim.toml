@@ -1,0 +1,19 @@
+name = 'swap-mm-sim'
+
+[lambda_params]
+book = 'SWAP-MM-SIM'
+market_depths = [
+    'ETH-PERP.FTX',
+    'ETH/USD.FTX',
+]
+
+[init_params]
+depth_symbol = 'ETH-PERP.FTX'
+hedge_symbol = 'ETH/USD.FTX'
+
+[strategy_params]
+base_size = 0.001
+min_basis = 3.5
+min_level = 5
+state = 'Init'
+target_acc_size = 31.0
