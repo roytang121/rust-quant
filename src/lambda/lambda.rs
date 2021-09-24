@@ -32,6 +32,8 @@ type InitParams = SwapMMInitParams;
 type StrategyParams = SwapMMStrategyParams;
 type StrategyState = SwapMMStrategyStateStruct;
 
+static STRATEGY_STATE_KEY: &str = "STRATEGY_STATE_KEY";
+
 pub struct Lambda {
     market_depth: Arc<MarketDepthCache>,
     depth_instrument: Arc<Instrument>,
@@ -103,12 +105,12 @@ impl Lambda {
     }
 
     fn get_strategy_state(&self) -> StrategyState {
-        let state = self.strategy_state.get(String::default().as_str()).unwrap();
+        let state = self.strategy_state.get(STRATEGY_STATE_KEY).unwrap();
         state.value().clone()
     }
 
     fn write_strategy_state(&self) -> Option<RefMut<'_, String, StrategyState, RandomState>> {
-        self.strategy_state.get_mut(String::default().as_str())
+        self.strategy_state.get_mut(STRATEGY_STATE_KEY)
     }
     //
     // async fn write_strategy_state(&self) -> RwLockWriteGuard<'_, StrategyState> {
@@ -200,7 +202,7 @@ impl Lambda {
                     }
                 }
             } else {
-                if let Some(mut state) = self.strategy_state.get_mut(String::default().as_str()) {
+                if let Some(mut state) = self.strategy_state.get_mut(STRATEGY_STATE_KEY) {
                     state.depth_bid_px = None;
                     state.depth_ask_px = None;
                     state.bid_basis_bp = None;
@@ -248,14 +250,16 @@ impl Lambda {
             error!("depth_instrument open_buy_orders > 1");
         }
 
+        let open_bid = open_buy_orders.get(0);
+
         let state = self.get_strategy_state();
-        if let (Some(open_bid_px), Some(target_bid_px)) = (state.open_bid_px, state.target_bid_px) {
-            if !open_buy_orders.is_empty() && open_bid_px != target_bid_px {
+        if let (Some(open_bid), Some(target_bid_px)) = (open_bid, state.target_bid_px) {
+            if !open_buy_orders.is_empty() && open_bid.price != target_bid_px {
                 for order in open_buy_orders {
                     self.depth_instrument
                         .cancel_order(order.client_id.unwrap_or_default().as_str());
                     if let Some(mut write_state) =
-                        self.strategy_state.get_mut(String::default().as_str())
+                        self.strategy_state.get_mut(STRATEGY_STATE_KEY)
                     {
                         write_state.enable_buy = true;
                     }
@@ -264,7 +268,7 @@ impl Lambda {
         } else { // missing required states
             if open_buy_orders.is_empty() { // if no open orders
                 if let Some(mut write_state) =
-                self.strategy_state.get_mut(String::default().as_str())
+                self.strategy_state.get_mut(STRATEGY_STATE_KEY)
                 {
                     write_state.enable_buy = true;
                 }
