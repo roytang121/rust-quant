@@ -3,7 +3,6 @@ use postgres::NoTls;
 use reqwest::blocking::Client;
 use serde::{Deserialize, Serialize};
 
-use simple_error::bail;
 use std::collections::HashMap;
 use std::error::Error;
 use std::time::SystemTime;
@@ -82,14 +81,14 @@ fn get_trades(
     client: &Client,
     url: &str,
     params: &HashMap<String, i64>,
-) -> Result<Vec<TradeHistory>, Box<dyn Error>> {
+) -> anyhow::Result<Vec<TradeHistory>> {
     let req = client.get(url).query(&params);
     let resp = req.send()?;
     let json = resp.json::<ApiResponse<Vec<TradeHistory>>>()?;
     match &json.success {
         true => Ok(json.result),
         false => {
-            bail!(json.error)
+            Err(anyhow::anyhow!(format!("{:?}", json)))
         }
     }
 }

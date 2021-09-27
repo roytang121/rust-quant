@@ -27,6 +27,7 @@ use std::collections::hash_map::RandomState;
 
 use std::sync::Arc;
 use std::time::Duration;
+use std::str::FromStr;
 
 type InitParams = SwapMMInitParams;
 type StrategyParams = SwapMMStrategyParams;
@@ -60,7 +61,7 @@ impl Lambda {
 
         // depth_instrument
         let depth_instrument_token =
-            Instrument::instrument_symbol(init_params.depth_symbol.as_str());
+            InstrumentSymbol::from_str(init_params.depth_symbol.as_str()).expect("Cannot parse depth instrument from token");
         let depth_instrument = match depth_instrument_token {
             InstrumentSymbol(exchange, market) => Arc::new(Instrument {
                 exchange,
@@ -71,7 +72,7 @@ impl Lambda {
         };
         // hedge_instrument
         let hedge_instrument_token =
-            Instrument::instrument_symbol(init_params.hedge_symbol.as_str());
+            InstrumentSymbol::from_str(init_params.hedge_symbol.as_str()).expect("Cannot parse hedge instrumen from token");
         let hedge_instrument = match hedge_instrument_token {
             InstrumentSymbol(exchange, market) => Arc::new(Instrument {
                 exchange,
@@ -95,7 +96,7 @@ impl Lambda {
         }
     }
 
-    fn get_strategy_params(&self) -> StrategyParams {
+    pub fn get_strategy_params(&self) -> StrategyParams {
         match self.lambda_instance.get_strategy_params_clone() {
             None => {
                 panic!("StrategyParams could not be None")
@@ -104,7 +105,7 @@ impl Lambda {
         }
     }
 
-    fn get_strategy_state(&self) -> StrategyState {
+    pub fn get_strategy_state(&self) -> StrategyState {
         let state = self.strategy_state.get(STRATEGY_STATE_KEY).unwrap();
         state.value().clone()
     }
@@ -177,7 +178,6 @@ impl Lambda {
                     ((target_ask_price - md.asks[0].price) / md.bids[0].price) * 10000.0;
 
                 let open_bid_orders = self.depth_instrument.get_open_buy_orders(true);
-                let open_bid = open_bid_orders.get(0);
 
                 if let Some(mut state) = self.write_strategy_state() {
                     state.target_bid_px = Some(target_bid_price);
@@ -203,7 +203,7 @@ impl Lambda {
                             state.depth_ask_px = Some(ask_0.price)
                         }
                     }
-                    match open_bid {
+                    match open_bid_orders.get(0) {
                         None => {
                             state.open_bid_px = None;
                         }
@@ -213,7 +213,7 @@ impl Lambda {
                     }
                 }
             } else {
-                if let Some(mut state) = self.strategy_state.get_mut(STRATEGY_STATE_KEY) {
+                if let Some(mut state) = self.write_strategy_state() {
                     state.depth_bid_px = None;
                     state.depth_ask_px = None;
                     state.bid_basis_bp = None;
@@ -268,18 +268,18 @@ impl Lambda {
             if !open_buy_orders.is_empty() && open_bid.price != target_bid_px {
                 for order in open_buy_orders {
                     self.depth_instrument
-                        .cancel_order(order.client_id.unwrap_or_default().as_str());
+                        .cancel_order(order.client_id.unwrap_or_default().as_str()).await;
                 }
                 if let Some(mut write_state) =
-                self.strategy_state.get_mut(STRATEGY_STATE_KEY)
+                self.write_strategy_state()
                 {
                     write_state.enable_buy = true;
                 }
             }
         } else { // no first active order
-            if open_buy_orders.is_empty() { // if no open orders
+            if open_buy_orders.is_empty() && !state.enable_buy { // if no open orders
                 if let Some(mut write_state) =
-                self.strategy_state.get_mut(STRATEGY_STATE_KEY)
+                self.write_strategy_state()
                 {
                     write_state.enable_buy = true;
                 }
@@ -309,7 +309,7 @@ impl Lambda {
                             OrderType::Limit,
                         )
                         .await;
-                    if let Some(mut state) = self.strategy_state.get_mut(STRATEGY_STATE_KEY) {
+                    if let Some(mut state) = self.write_strategy_state() {
                         state.enable_buy = false;
                     }
                 }
@@ -341,6 +341,7 @@ impl Lambda {
                 panic!("depth_instrument.subscribe_order_fill panic: {:?}", result)
             }
         }
+        panic!("Lambda subscribe uncaught")
     }
 }
 pub struct SimpleHedger {

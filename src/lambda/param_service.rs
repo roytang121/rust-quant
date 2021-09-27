@@ -12,6 +12,7 @@ use rocket::route::{Handler, Outcome};
 use rocket::fairing::{Fairing, Info, Kind};
 use rocket::{Data, Request, Response};
 use serde_json::Value;
+use rocket::config::LogLevel;
 
 #[derive(Clone)]
 pub struct LambdaStrategyParamService {
@@ -87,8 +88,10 @@ impl LambdaStrategyParamService {
     pub async fn subscribe(&self) -> Result<(), rocket::Error> {
         let config = rocket::Config {
             port: 6008,
-            ..rocket::Config::debug_default()
+            log_level: LogLevel::Critical,
+            ..rocket::Config::default()
         };
+        info!("config: {:?}", config);
         let routes = vec![
             // params
             rocket::route::Route::new(Method::Get, "/params", self.route(MyRoute::GetParam)),

@@ -162,6 +162,7 @@ impl OrderRequest {
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct CancelOrderRequest {
     pub exchange: Exchanges,
+    pub market: String,
     pub client_id: String,
 }
 
@@ -200,13 +201,23 @@ impl OrderRequest {
         order_update_cache: &OrderUpdateCacheInner,
         message_bus_sender: &tokio::sync::mpsc::Sender<PublishPayload>,
         client_id: &str,
+        market: &str,
     ) -> anyhow::Result<()> {
         if let Some(mut order_update) = order_update_cache.get_mut(client_id) {
-            order_update.status = OrderStatus::PendingCancel
+            match order_update.status {
+                OrderStatus::New | OrderStatus::Open => {
+                    order_update.status = OrderStatus::PendingCancel
+                }
+                ref status => {
+                    warn!("order status {}. skipping cancel_order", status.to_string());
+                    return Ok(())
+                }
+            }
         }
         let cancel_order_request = CancelOrderRequest {
             exchange: Exchanges::FTX,
             client_id: client_id.to_string(),
+            market: market.to_string(),
         };
         let payload = PublishPayload {
             channel: PublishChannel::CancelOrder.to_string(),

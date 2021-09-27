@@ -3,13 +3,13 @@ name = 'swap-mm-sim'
 [lambda_params]
 book = 'SWAP-MM-SIM'
 market_depths = [
-    'ETH-PERP.FTX',
-    'ETH/USD.FTX',
+    'ETH-PERP.SIM',
+    'ETH/USD.SIM',
 ]
 
 [init_params]
-depth_symbol = 'ETH-PERP.FTX'
-hedge_symbol = 'ETH/USD.FTX'
+depth_symbol = 'ETH-PERP.SIM'
+hedge_symbol = 'ETH/USD.SIM'
 
 [strategy_params]
 base_size = 0.001

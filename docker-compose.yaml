@@ -1,6 +1,20 @@
 version: '3.1'
 
 services:
+  reverse-proxy:
+    # The official v2 Traefik docker image
+    image: traefik:v2.5
+    # Enables the web UI and tells Traefik to listen to docker
+    command: --api.insecure=true --providers.docker
+    ports:
+      # The HTTP port
+      - "80:80"
+      # The Web UI (enabled by --api.insecure=true)
+      - "8080:8080"
+    volumes:
+      # So that Traefik can listen to the Docker events
+      - /var/run/docker.sock:/var/run/docker.sock
+
   postgres:
     image: postgres
     # restart: always
@@ -39,15 +53,23 @@ services:
     build:
       context: .
       dockerfile: lambda_engine.Dockerfile
-#    image: rust:1.55.0
-#    command: cargo run --bin luban swap-mm-ethusd
     working_dir: /app
-    # volumes:
-    #   - ./:/app
     environment:
       - ENV=development
     ports:
       - 6008:6008
+
+  gen_js:
+    build:
+      context: .
+      dockerfile: gen_js.Dockerfile
+    working_dir: /app
+    environment:
+      - DIR=/app/proto
+      - OUT_DIR=/app/proto/gen-js
+      - PROTO_FILE=lambda_view.proto
+    volumes:
+      - ./proto:/app/proto
 
   grafana:
     container_name: grafana

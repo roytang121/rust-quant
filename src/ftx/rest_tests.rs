@@ -4,7 +4,7 @@ mod rest_tests {
 
     use crate::ftx::types::FtxPlaceOrder;
     use crate::model::constants::Exchanges;
-    use crate::model::{OrderRequest, OrderSide, OrderType};
+    use crate::model::{OrderRequest, OrderSide, OrderType, CancelOrderRequest};
 
     #[tokio::test]
     async fn it_init() {
@@ -33,5 +33,23 @@ mod rest_tests {
         let ftx_request = FtxPlaceOrder::from_order_request(order_request);
         println!("{:?}", ftx_request);
         println!("{:?}", serde_json::to_value(ftx_request).unwrap());
+    }
+
+    #[tokio::test]
+    async fn it_cancel_order() {
+        std::env::set_var("ENV", "development");
+        std::env::set_var("RUST_LOG", "DEBUG");
+        env_logger::init();
+        let client = FtxRestClient::new();
+        let response = client.cancel_order_cid("abc").await;
+        match response {
+            Ok(resp) => {
+                info!("{:?}", resp);
+                assert!(true)
+            }
+            Err(err) => {
+                error!("{}", err)
+            }
+        }
     }
 }

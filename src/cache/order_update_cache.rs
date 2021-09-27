@@ -44,6 +44,7 @@ impl OrderUpdateCache {
                             OrderStatus::PendingCancel => match order_update.status {
                                 OrderStatus::New | OrderStatus::Open => {
                                     order_update.status = OrderStatus::PendingCancel;
+                                    drop(cached_order);
                                     cache.insert(cache_key, order_update);
                                     return ();
                                 }

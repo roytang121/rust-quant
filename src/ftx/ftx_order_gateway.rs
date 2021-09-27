@@ -52,7 +52,8 @@ impl OrderGateway for FtxOrderGateway {
         let order_fill_service = FtxOrderFillService::new();
         let order_request_service =
             FtxOrderRequestService::new(self.message_bus_sender.clone(), self.client.clone());
-        let cancel_order_service = FtxCancelOrderService::new(self.client.clone());
+        let cancel_order_service =
+            FtxCancelOrderService::new(self.message_bus_sender.clone(), self.client.clone());
         tokio::select! {
             Err(err) = order_update_service.subscribe() => {
                 log::error!("order_update_service panic: {}", err)
@@ -67,7 +68,8 @@ impl OrderGateway for FtxOrderGateway {
                 log::error!("cancel_order_service panic: {}", err)
             },
         }
-        Err(anyhow!("FtxOrderGateway subscribe uncaught"))
+        panic!("FtxOrderGateway subscribe uncaught")
+        // Err(anyhow!("FtxOrderGateway subscribe uncaught"))
     }
 }
 
@@ -139,7 +141,7 @@ impl FtxOrderUpdateService {
                 error!("FtxOrderUpdateService process_message: {}", err)
             }
         }
-        Ok(())
+        Err(anyhow!("FtxOrderUpdateService subscribe uncaught"))
     }
 }
 
@@ -294,27 +296,46 @@ impl MessageConsumer for FtxOrderRequestService {
 }
 
 struct FtxCancelOrderService {
+    message_bus_sender: MessageBusSender,
     client: Arc<FtxRestClient>,
 }
 impl FtxCancelOrderService {
-    pub fn new(client: Arc<FtxRestClient>) -> Self {
-        FtxCancelOrderService { client }
+    pub fn new(message_bus_sender: MessageBusSender, client: Arc<FtxRestClient>) -> Self {
+        FtxCancelOrderService {
+            message_bus_sender,
+            client,
+        }
     }
-    pub async fn subscribe(&self) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn subscribe(&self) -> anyhow::Result<()> {
         RedisBackedMessageBus::subscribe_channels(vec![PublishChannel::CancelOrder.as_ref()], self)
             .await?;
-        Ok(())
+        Err(anyhow!("FtxCancelOrderService subscribe uncaught"))
     }
     async fn accept_cancel_order_request(
         client: Arc<FtxRestClient>,
         cancel_order_request: CancelOrderRequest,
+        message_bus_sender: MessageBusSender,
     ) {
         match client
             .cancel_order_cid(cancel_order_request.client_id.as_str())
             .await
         {
             Ok(_response) => {}
-            Err(_err) => {}
+            Err(err) => {
+                // FIXME: need to manual clean up order cache for pending cancel orders
+                // check if err = 400
+                log::error!("{}", err);
+                // let mut order_update = OrderUpdate::default();
+                // order_update.client_id = Some(cancel_order_request.client_id);
+                // order_update.status = OrderStatus::Failed;
+                // order_update.exchange = cancel_order_request.exchange.clone();
+                // order_update.market = cancel_order_request.market.clone();
+                // let publish_payload = PublishPayload {
+                //     channel: PublishChannel::OrderUpdate.to_string(),
+                //     payload: serde_json::to_string(&order_update).unwrap(),
+                // };
+                // message_bus_sender.send(publish_payload).await;
+            }
         }
     }
 }
@@ -326,11 +347,17 @@ impl MessageConsumer for FtxCancelOrderService {
                 if order_request.exchange == Exchanges::FTX {
                     log::info!("FtxCancelOrderService: {:?}", order_request);
                     let client = self.client.clone();
-                    tokio::spawn(Self::accept_cancel_order_request(client, order_request));
+                    let message_bus_sender = self.message_bus_sender.clone();
+                    tokio::spawn(Self::accept_cancel_order_request(
+                        client,
+                        order_request,
+                        message_bus_sender,
+                    ));
                 }
             }
             Err(err) => {
-                log::error!("{}", err)
+                log::error!("{}", err);
+                return Err(anyhow!(err))
             }
         };
         Ok(())

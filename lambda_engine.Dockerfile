@@ -1,7 +1,10 @@
-FROM rust:1.55.0
+FROM rust:latest
 
 WORKDIR /app
 COPY . .
+
+RUN rustup component add rustfmt
+# RUN cargo install --path .
 
 # RUN cargo install miniserve
 # CMD miniserve .

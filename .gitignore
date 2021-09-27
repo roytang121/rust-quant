@@ -2,6 +2,8 @@
 # Edit at https://www.toptal.com/developers/gitignore?templates=rust,visualstudiocode,intellij,node,yarn,macos,windows
 
 *.config.toml
+frontend/node_modules
+frontend/node_modules/**/*
 
 ### Intellij ###
 # Covers JetBrains IDEs: IntelliJ, RubyMine, PhpStorm, AppCode, PyCharm, CLion, Android Studio, WebStorm and Rider

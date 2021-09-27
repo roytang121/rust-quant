@@ -204,6 +204,17 @@ impl FtxRestClient {
         let request = self.delete(format!("/orders/by_client_id/{}", cid).as_str(), None);
         let response = request.send().await?;
         let json = response.json::<serde_json::Value>().await?;
-        Ok(json)
+        match json["success"].as_bool() {
+            None => {
+                return Err(anyhow!("Missing success field"))
+            }
+            Some(success) => {
+                if (success) {
+                    return Ok(json)
+                } else {
+                    return Err(anyhow!(format!("{:?}", json["error"].as_str())))
+                }
+            }
+        }
     }
 }

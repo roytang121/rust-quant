@@ -14,3 +14,4 @@ pub mod ftx;
 pub mod lambda;
 pub mod model;
 pub mod pubsub;
+pub mod view;

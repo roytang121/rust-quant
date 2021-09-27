@@ -20,6 +20,18 @@ pub struct Instrument {
 
 pub struct InstrumentSymbol(pub Exchanges, pub String);
 
+impl FromStr for InstrumentSymbol {
+    type Err = ();
+
+    fn from_str(token: &str) -> Result<Self, Self::Err> {
+        let split: Vec<&str> = token.split(".").collect();
+        let market = split.get(0).expect("Invalid token.").to_owned();
+        let exchange = split.get(1).expect("Invalid token.").to_owned();
+        let exchange = Exchanges::from_str(exchange).expect("Unknown exchange");
+        Ok(InstrumentSymbol(exchange, market.to_string()))
+    }
+}
+
 impl Instrument {
     pub fn new(
         exchange: Exchanges,
@@ -110,8 +122,13 @@ impl Instrument {
     }
 
     pub async fn cancel_order(&self, client_id: &str) -> anyhow::Result<()> {
-        OrderRequest::cancel_order(&self.order_cache.cache, &self.message_bus_sender, client_id)
-            .await
+        OrderRequest::cancel_order(
+            &self.order_cache.cache,
+            &self.message_bus_sender,
+            client_id,
+            self.market.as_str(),
+        )
+        .await
     }
 
     pub async fn subscribe_order_fill<T>(&self, consumer: &T) -> anyhow::Result<()>

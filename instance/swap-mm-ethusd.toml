@@ -13,7 +13,7 @@ hedge_symbol = 'ETH/USD.FTX'
 
 [strategy_params]
 base_size = 0.001
-min_basis = 3.5
+min_basis = 1.0
 min_level = 5
-state = 'Stopped'
+state = 'Init'
 target_acc_size = 31.0
