@@ -31,4 +31,5 @@ pub enum PublishChannel {
     OrderRequest,
     MarketDepth,
     CancelOrder,
+    StrategyStates,
 }

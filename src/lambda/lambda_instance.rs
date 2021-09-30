@@ -7,8 +7,10 @@ use serde_json::Value;
 
 use dashmap::DashMap;
 
+use crate::cache::{ValueCache, ValueCacheKey};
 use crate::lambda::LambdaState;
 use std::fmt::Debug;
+use std::sync::Arc;
 use tokio::sync::RwLock;
 
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]
@@ -88,7 +90,7 @@ pub struct LambdaInstance {
     pub init_params: Value,
     pub strategy_params_request_sender: LambdaStrategyParamsRequestSender,
     strategy_params_receiver: RwLock<tokio::sync::mpsc::Receiver<LambdaStrategyParamsRequest>>,
-    pub value_cache: DashMap<String, Option<Value>>,
+    pub value_cache: Arc<ValueCache>,
 }
 
 #[derive(Debug)]
@@ -149,14 +151,14 @@ impl LambdaStrategyParamsRequest {
 }
 
 impl LambdaInstance {
-    pub fn new(config: LambdaInstanceConfig) -> LambdaInstance {
+    pub fn new(config: LambdaInstanceConfig, value_cache: Arc<ValueCache>) -> LambdaInstance {
         let (tx, rx) = tokio::sync::mpsc::channel::<LambdaStrategyParamsRequest>(100);
-        let value_cache = DashMap::new();
-        value_cache.insert(LambdaInstanceValueCacheKey::StrategyState.to_string(), None);
-        value_cache.insert(
-            LambdaInstanceValueCacheKey::StrategyParam.to_string(),
-            Some(config.strategy_params),
-        );
+        // let value_cache = DashMap::new();
+        // value_cache.insert(LambdaInstanceValueCacheKey::StrategyState.to_string(), None);
+        // value_cache.insert(
+        //     LambdaInstanceValueCacheKey::StrategyParam.to_string(),
+        //     Some(config.strategy_params),
+        // );
         LambdaInstance {
             name: config.name.to_string(),
             lambda_params: config.lambda_params,
@@ -170,14 +172,7 @@ impl LambdaInstance {
     async fn save_instance_config(&self) -> Result<(), ConfyError> {
         let strategy_params = self
             .value_cache
-            .get(
-                LambdaInstanceValueCacheKey::StrategyParam
-                    .to_string()
-                    .as_str(),
-            )
-            .unwrap()
-            .value()
-            .clone()
+            .get_clone(ValueCacheKey::StrategyParams)
             .unwrap();
         let config = LambdaInstanceConfig {
             name: self.name.clone(),
@@ -189,93 +184,86 @@ impl LambdaInstance {
     }
 
     pub fn get_strategy_params_clone(&self) -> Option<Value> {
-        return match self.value_cache.get(
-            LambdaInstanceValueCacheKey::StrategyParam
-                .to_string()
-                .as_str(),
-        ) {
-            None => None,
-            Some(value) => value.value().clone(),
-        };
+        self.value_cache.get_clone(ValueCacheKey::StrategyParams)
     }
 
-    pub async fn subscribe_strategy_params_requests(
-        &self,
-    ) -> Result<(), Box<dyn std::error::Error>> {
-        let mut strategy_params_receiver = self.strategy_params_receiver.write().await;
-        while let Some(msg) = strategy_params_receiver.recv().await {
-            match msg.0 {
-                RequestType::ParamSnapshot { result } => {
-                    if let Some(value) = self.value_cache.get(
-                        LambdaInstanceValueCacheKey::StrategyParam
-                            .to_string()
-                            .as_str(),
-                    ) {
-                        match value.value().clone() {
-                            None => {
-                                panic!("Request Strategy params but it's nil");
-                            }
-                            Some(value) => {
-                                result.send(value).unwrap();
-                            }
-                        }
-                    } else {
-                        panic!("Uncaught: getting ParamSnapshot should not be nil")
-                    }
-                }
-                RequestType::UpdateParam { value } => {
-                    info!("UpdateParam: {}", value);
-                    self.value_cache.insert(
-                        LambdaInstanceValueCacheKey::StrategyParam.to_string(),
-                        Some(value),
-                    );
-                    self.save_instance_config().await?;
-                }
-                RequestType::SetState { value } => {
-                    self.value_cache.insert(
-                        LambdaInstanceValueCacheKey::StrategyState.to_string(),
-                        Some(value),
-                    );
-                }
-                RequestType::StateSnapshot { result } => {
-                    if let Some(value) = self.value_cache.get(
-                        LambdaInstanceValueCacheKey::StrategyState
-                            .to_string()
-                            .as_str(),
-                    ) {
-                        match value.value().clone() {
-                            None => {
-                                result.send(None);
-                            }
-                            Some(value) => {
-                                result.send(Some(value));
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        Ok(())
-    }
+    // pub async fn subscribe_strategy_params_requests(
+    //     &self,
+    // ) -> Result<(), Box<dyn std::error::Error>> {
+    //     let mut strategy_params_receiver = self.strategy_params_receiver.write().await;
+    //     while let Some(msg) = strategy_params_receiver.recv().await {
+    //         match msg.0 {
+    //             RequestType::ParamSnapshot { result } => {
+    //                 if let Some(value) = self.value_cache.get(
+    //                     LambdaInstanceValueCacheKey::StrategyParam
+    //                         .to_string()
+    //                         .as_str(),
+    //                 ) {
+    //                     match value.value().clone() {
+    //                         None => {
+    //                             panic!("Request Strategy params but it's nil");
+    //                         }
+    //                         Some(value) => {
+    //                             result.send(value).unwrap();
+    //                         }
+    //                     }
+    //                 } else {
+    //                     panic!("Uncaught: getting ParamSnapshot should not be nil")
+    //                 }
+    //             }
+    //             RequestType::UpdateParam { value } => {
+    //                 info!("UpdateParam: {}", value);
+    //                 self.value_cache.insert(
+    //                     LambdaInstanceValueCacheKey::StrategyParam.to_string(),
+    //                     Some(value),
+    //                 );
+    //                 self.save_instance_config().await?;
+    //             }
+    //             RequestType::SetState { value } => {
+    //                 self.value_cache.insert(
+    //                     LambdaInstanceValueCacheKey::StrategyState.to_string(),
+    //                     Some(value),
+    //                 );
+    //             }
+    //             RequestType::StateSnapshot { result } => {
+    //                 if let Some(value) = self.value_cache.get(
+    //                     LambdaInstanceValueCacheKey::StrategyState
+    //                         .to_string()
+    //                         .as_str(),
+    //                 ) {
+    //                     match value.value().clone() {
+    //                         None => {
+    //                             result.send(None);
+    //                         }
+    //                         Some(value) => {
+    //                             result.send(Some(value));
+    //                         }
+    //                     }
+    //                 }
+    //             }
+    //         }
+    //     }
+    //     Ok(())
+    // }
 
-    pub async fn subscribe_rest(&self) -> anyhow::Result<()> {
-        let sender = self.strategy_params_request_sender.clone();
-        tokio::spawn(async move {
-            info!("spawning subscribe_rest");
-            let param_service = LambdaStrategyParamService::new(sender);
-            param_service.subscribe().await;
-        })
-        .await;
-        Err(anyhow!("subscribe_rest uncaught"))
-    }
-
-    pub async fn subscribe(&self) -> Result<(), Box<dyn std::error::Error>> {
-        tokio::select! {
-            Err(_err) = self.subscribe_strategy_params_requests() => {},
-            result = self.subscribe_rest() => {
-                error!("subscribe_rest error: {:?}", result)
-            }
-        }
-        Ok(())
-    }
+    // pub async fn subscribe_rest(&self) -> anyhow::Result<()> {
+    //     let sender = self.strategy_params_request_sender.clone();
+    //     tokio::spawn(async move {
+    //         info!("spawning subscribe_rest");
+    //         let param_service = LambdaStrategyParamService::new(sender);
+    //         param_service.subscribe().await;
+    //     })
+    //     .await;
+    //     Err(anyhow!("subscribe_rest uncaught"))
+    // }
+    //
+    // pub async fn subscribe(&self) -> Result<(), Box<dyn std::error::Error>> {
+    //     tokio::select! {
+    //         Err(_err) = self.subscribe_strategy_params_requests() => {},
+    //         result = self.subscribe_rest() => {
+    //             error!("subscribe_rest error: {:?}", result)
+    //         }
+    //     }
+    //     Ok(())
+    // }
 }

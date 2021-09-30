@@ -3,7 +3,7 @@ mod lambda;
 mod lambda_instance;
 mod param_service;
 
-pub use engine::engine;
+pub use engine::{LambdaEngine};
 pub use lambda::{ SimpleHedger, Lambda };
 pub use lambda_instance::{
     GenericLambdaInstanceConfig, LambdaInstance, LambdaInstanceConfig, LambdaParams,

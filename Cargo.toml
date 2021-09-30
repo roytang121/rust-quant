@@ -20,8 +20,6 @@ log = "0.4.14"
 mockall = "0.10.2"
 ordered-float = "2.8.0"
 postgres = "0.19.1"
-prost = "0.8.0"
-prost-types = "0.8.0"
 rand = "0.8.4"
 redis = { version = "0.21.2", features = ["tokio-comp"] }
 reqwest = { version = "0.11.4", features = ["json", "blocking"] }
@@ -36,8 +34,6 @@ thiserror = "1.0.28"
 tokio = { version = "1.12.0", features = ['full'] }
 tokio-stream = "0.1.7"
 tokio-tungstenite = { version = "0.15.0", features = ['rustls-tls'] }
-tonic = { version = "0.5.2", features = ["transport"] }
-tonic-web = "0.1.0"
 tungstenite = { version = "0.14.0", features = ["rustls-tls"] }
 url = "2.2.2"
 uuid = { version = "0.8.2", features = ["v4"] }

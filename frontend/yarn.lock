@@ -11726,6 +11726,14 @@ redent@^3.0.0:
     indent-string "^4.0.0"
     strip-indent "^3.0.0"
 
+redis-grpc@^0.0.1:
+  version "0.0.1"
+  resolved "https://registry.yarnpkg.com/redis-grpc/-/redis-grpc-0.0.1.tgz#a237be61f739f7f57b6f5bb9af95878f50b964f9"
+  integrity sha512-TsICL0YAJDBVS4S0jb1ltMCF/om3RK7A+42r96RnV6M7TBPcSbr8DqoFVmWo9v+QVH1/3IGmc1+n4hhjBEO/vA==
+  dependencies:
+    google-protobuf "^3.18.0"
+    grpc-web "^1.2.1"
+
 redux-thunk@^2.3.0:
   version "2.3.0"
   resolved "https://registry.yarnpkg.com/redux-thunk/-/redux-thunk-2.3.0.tgz#51c2c19a185ed5187aaa9a2d08b666d0d6467622"

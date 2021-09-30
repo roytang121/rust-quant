@@ -10,3 +10,9 @@ pub use order_data_model::{
     CancelOrderRequest, OrderFill, OrderRequest, OrderSide, OrderStatus, OrderType, OrderUpdate,
     OrderUpdateCacheInner,
 };
+
+pub mod global_measurement {
+    use crate::model::{Measurement, TSOptions};
+
+    pub static ORDER_LATENCY: Measurement = Measurement::OrderLatency { options: TSOptions { retention: 0 } };
+}

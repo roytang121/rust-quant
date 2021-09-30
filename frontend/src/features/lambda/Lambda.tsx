@@ -7,8 +7,8 @@ import { combineLatest, switchMap, switchMapTo, timer } from "rxjs";
 import LambdaApi from "./lambda.api";
 import { LamabdaParamEntry } from "./lambda.types";
 
-import { ParamsRequest } from '../../proto/gen-js/lambda_view_pb.js';
-import { LambdaViewClient } from '../../proto/gen-js/lambda_view_grpc_web_pb.js';
+import { SubscribeRequest } from 'redis-grpc/gen-js/redis_grpc_pb';
+import { RedisGrpcPromiseClient } from 'redis-grpc/gen-js/redis_grpc_grpc_web_pb';
 
 interface Props {
   host: string;
@@ -19,14 +19,22 @@ const Lambda = ({ host }: Props) => {
   const [entries, setEntries] = useState<LamabdaParamEntry[]>([]);
 
   useEffect(() => {
-    const service = new LambdaViewClient('http://localhost:50051');
-    const request = new ParamsRequest();
-    request.setKey("MarketDepth:FTX:ETH-PERP");
-    const stream = service.streamParams(request, {});
-    stream.on('data', response => {
-      const json = JSON.parse(response.getJson());
-      console.log(json)
-    });
+    const service = new RedisGrpcPromiseClient("http://localhost:50051")
+
+    let sub_request = new SubscribeRequest();
+    sub_request.setChannels("StrategyStates:swap-mm-ethusd");
+    let pubsub = service.subscribe(sub_request);
+    pubsub.on("data", data => {
+      const message = data.getMessage();
+      console.log(message);
+      
+      const states: LamabdaParamEntry[] = JSON.parse(message);
+      setEntries([...states])
+    })
+
+    return () => {
+      pubsub.cancel()
+    }
   }, [])
   
   useEffect(() => {

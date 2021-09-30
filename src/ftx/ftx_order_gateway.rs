@@ -3,7 +3,7 @@ use crate::ftx::types::{FtxOrderData, FtxOrderFill, WebSocketResponse, WebSocket
 use crate::ftx::utils::{connect_ftx_authed, ping_pong};
 use crate::ftx::FtxRestClient;
 use crate::model::constants::{Exchanges, PublishChannel};
-use crate::model::{CancelOrderRequest, OrderRequest, OrderStatus, OrderUpdate};
+use crate::model::{CancelOrderRequest, Measurement, MeasurementCache, OrderRequest, OrderStatus, OrderUpdate, TSOptions};
 use crate::pubsub::simple_message_bus::{MessageBusSender, MessageConsumer, RedisBackedMessageBus};
 use async_trait::async_trait;
 
@@ -21,10 +21,12 @@ use tokio::net::TcpStream;
 use tokio_stream::wrappers::ReceiverStream;
 use tokio_tungstenite::tungstenite::Message;
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
+use crate::model::global_measurement::ORDER_LATENCY;
 
 pub struct FtxOrderGateway {
     message_bus_sender: MessageBusSender,
     client: Arc<FtxRestClient>,
+    measurement_cache: Arc<MeasurementCache>,
 }
 
 #[derive(Error, Debug)]
@@ -37,10 +39,12 @@ impl FtxOrderGateway {
     pub fn new(
         message_bus_sender: MessageBusSender,
         client: Arc<FtxRestClient>,
+        measurement_cache: Arc<MeasurementCache>,
     ) -> FtxOrderGateway {
         FtxOrderGateway {
             message_bus_sender,
             client,
+            measurement_cache,
         }
     }
 }
@@ -51,7 +55,7 @@ impl OrderGateway for FtxOrderGateway {
         let order_update_service = FtxOrderUpdateService::new();
         let order_fill_service = FtxOrderFillService::new();
         let order_request_service =
-            FtxOrderRequestService::new(self.message_bus_sender.clone(), self.client.clone());
+            FtxOrderRequestService::new(self.message_bus_sender.clone(), self.client.clone(), self.measurement_cache.clone());
         let cancel_order_service =
             FtxCancelOrderService::new(self.message_bus_sender.clone(), self.client.clone());
         tokio::select! {
@@ -223,12 +227,14 @@ impl FtxOrderFillService {
 struct FtxOrderRequestService {
     client: Arc<FtxRestClient>,
     message_bus_sender: MessageBusSender,
+    measurement_cache: Arc<MeasurementCache>,
 }
 impl FtxOrderRequestService {
-    pub fn new(message_bus_sender: MessageBusSender, client: Arc<FtxRestClient>) -> Self {
+    pub fn new(message_bus_sender: MessageBusSender, client: Arc<FtxRestClient>, measurement_cache: Arc<MeasurementCache>) -> Self {
         FtxOrderRequestService {
             client,
             message_bus_sender,
+            measurement_cache,
         }
     }
 
@@ -241,9 +247,15 @@ impl FtxOrderRequestService {
         message_bus_sender: MessageBusSender,
         client: Arc<FtxRestClient>,
         order_request: OrderRequest,
+        measurement_cache: Arc<MeasurementCache>,
     ) {
+        let event_id = order_request.client_id.clone().unwrap();
+        measurement_cache.time_start(event_id.as_str());
         let original_request = order_request.clone();
         let api_result = client.place_order(order_request).await;
+        if let Some(latency) = measurement_cache.time_end(event_id.as_str()) {
+            measurement_cache.add_point_now(&ORDER_LATENCY, latency as f64)
+        }
         match api_result {
             Ok(_response) => {}
             Err(_) => {
@@ -284,7 +296,8 @@ impl MessageConsumer for FtxOrderRequestService {
                     log::info!("FtxOrderRequestService: {:?}", order_request);
                     let mbs = self.message_bus_sender.clone();
                     let client = self.client.clone();
-                    tokio::spawn(Self::accept_order_request(mbs, client, order_request));
+                    let measurement_cache = self.measurement_cache.clone();
+                    tokio::spawn(Self::accept_order_request(mbs, client, order_request, measurement_cache));
                 }
             }
             Err(err) => {

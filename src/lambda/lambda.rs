@@ -1,12 +1,9 @@
-use crate::cache::MarketDepthCache;
-use crate::lambda::lambda_instance::{
-    LambdaStrategyParamsRequest, LambdaStrategyParamsRequestSender,
-};
+use crate::cache::{MarketDepthCache, ValueCache, ValueCacheKey};
 use crate::lambda::strategy::swap_mm::params::{
     SwapMMInitParams, SwapMMStrategyParams, SwapMMStrategyStateStruct,
 };
 use crate::lambda::{
-    GenericLambdaInstanceConfig, LambdaInstance, LambdaInstanceConfig, LambdaState,
+    GenericLambdaInstanceConfig, LambdaInstanceConfig, LambdaState,
 };
 
 use crate::model::{
@@ -14,8 +11,6 @@ use crate::model::{
     OrderUpdate,
 };
 use crate::pubsub::PublishPayload;
-
-use rocket::tokio::sync::mpsc::error::SendError;
 
 use crate::cache::OrderUpdateCache;
 
@@ -39,10 +34,9 @@ pub struct Lambda {
     market_depth: Arc<MarketDepthCache>,
     depth_instrument: Arc<Instrument>,
     hedge_instrument: Arc<Instrument>,
-    lambda_instance: LambdaInstance,
     strategy_state: Arc<DashMap<String, StrategyState>>,
-    strategy_params_request_sender: LambdaStrategyParamsRequestSender,
     measurement_cache: Arc<MeasurementCache>,
+    value_cache: Arc<ValueCache>,
 }
 
 impl Lambda {
@@ -52,12 +46,12 @@ impl Lambda {
         order_cache: Arc<OrderUpdateCache>,
         message_bus_sender: tokio::sync::mpsc::Sender<PublishPayload>,
         measurement_cache: Arc<MeasurementCache>,
+        value_cache: Arc<ValueCache>,
     ) -> Self {
-        let lambda_instance =
-            LambdaInstance::new(LambdaInstanceConfig::load(instance_config.name.as_str()));
-        let strategy_params_sender = lambda_instance.strategy_params_request_sender.clone();
+        // get init params
+        let lambda_instance_config = LambdaInstanceConfig::load(instance_config.name.as_str());
         let init_params =
-            serde_json::from_value::<InitParams>(lambda_instance.init_params.clone()).unwrap();
+            serde_json::from_value::<InitParams>(lambda_instance_config.init_params.clone()).unwrap();
 
         // depth_instrument
         let depth_instrument_token =
@@ -89,15 +83,14 @@ impl Lambda {
             market_depth,
             depth_instrument,
             hedge_instrument,
-            lambda_instance,
             strategy_state: Arc::new(strategy_state),
-            strategy_params_request_sender: strategy_params_sender,
             measurement_cache,
+            value_cache,
         }
     }
 
     pub fn get_strategy_params(&self) -> StrategyParams {
-        match self.lambda_instance.get_strategy_params_clone() {
+        match self.value_cache.get_clone(ValueCacheKey::StrategyParams) {
             None => {
                 panic!("StrategyParams could not be None")
             }
@@ -118,11 +111,11 @@ impl Lambda {
     //     self.strategy_state.write().await
     // }
 
-    async fn publish_state(&self) -> Result<(), SendError<LambdaStrategyParamsRequest>> {
+    async fn publish_state(&self) -> anyhow::Result<()> {
         let strategy_state = self.get_strategy_state();
-        let value = serde_json::to_value(strategy_state).unwrap();
-        LambdaStrategyParamsRequest::request_set_state(&self.strategy_params_request_sender, value)
-            .await
+        let value = serde_json::to_value(strategy_state)?;
+        self.value_cache.insert(ValueCacheKey::StrategyStates, value);
+        Ok(())
     }
 
     async fn period_publish_state(&self) -> anyhow::Result<()> {
@@ -137,7 +130,6 @@ impl Lambda {
 
     async fn period_update(&self) -> anyhow::Result<()> {
         loop {
-            // info!("lambda update in thread_id: {:?}", std::thread::current().id());
             if let Some(md) = self
                 .market_depth
                 .get_clone(self.depth_instrument.market.as_str())
@@ -333,9 +325,6 @@ impl Lambda {
             }
             result = self.period_cancel_orders() => {
                 panic!("lambda cancel_orders panic: {:?}", result)
-            }
-            result = self.lambda_instance.subscribe() => {
-                panic!("lambda_instance subscribe_strategy_params panic: {:?}", result)
             }
             result = hedger.subscribe() => {
                 panic!("depth_instrument.subscribe_order_fill panic: {:?}", result)

@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use crate::core::config::ConfigStore;
 use crate::model::constants::Exchanges;
 use crate::model::OrderSide;
@@ -5,7 +6,7 @@ use redis::AsyncCommands;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct TSOptions {
-    retention: i64,
+    pub retention: i64,
 }
 impl Default for TSOptions {
     fn default() -> Self {
@@ -21,7 +22,11 @@ pub enum Measurement {
         market: String,
         side: OrderSide,
     },
+    OrderLatency {
+        options: TSOptions,
+    },
 }
+
 trait FillRedisArgs {
     fn redis_args(&self) -> Vec<String>;
 }
@@ -50,14 +55,23 @@ impl FillRedisArgs for Measurement {
                     side.to_string(),
                 ];
                 vec![options_args, args].concat()
+            },
+            Measurement::OrderLatency { options } => {
+                options.redis_args()
             }
         }
     }
 }
 
+pub struct TimerStamp {
+    start: i64,
+    end: Option<i64>,
+}
+
 pub struct MeasurementCache {
     client: redis::Client,
     shared_conn: redis::aio::MultiplexedConnection,
+    timer_cache: Arc<dashmap::DashMap<String, TimerStamp>>,
 }
 
 impl MeasurementCache {
@@ -71,6 +85,7 @@ impl MeasurementCache {
         MeasurementCache {
             client: redis,
             shared_conn: conn,
+            timer_cache: Arc::new(dashmap::DashMap::new()),
         }
     }
 
@@ -149,5 +164,38 @@ impl MeasurementCache {
                 Err(err) => error!("{}, key = {}", err, time_now),
             }
         });
+    }
+
+    fn time_now() -> i64 {
+        chrono::Utc::now().timestamp_millis()
+    }
+
+    pub fn time_start(&self, event: &str) {
+        match self.timer_cache.get_mut(event) {
+            None => {
+                let timer_stamp = TimerStamp {
+                    start: MeasurementCache::time_now(),
+                    end: None,
+                };
+                self.timer_cache.insert(event.to_string(), timer_stamp);
+            }
+            Some(mut timer_stamp) => {
+                timer_stamp.start = MeasurementCache::time_now();
+            }
+        };
+    }
+
+    pub fn time_end(&self, event: &str) -> Option<i64> {
+        return match self.timer_cache.get_mut(event) {
+            None => {
+                error!("Error setting measurement cache timer_cache wit event {}: key not found", event);
+                None
+            }
+            Some(mut timer_stamp) => {
+                let end = MeasurementCache::time_now();
+                timer_stamp.end = Some(end);
+                Some(end - timer_stamp.start)
+            }
+        }
     }
 }
