@@ -2,12 +2,12 @@ use serde_json::Value;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct KeyValueEntry {
-    key: String,
-    value: Value,
+    pub key: String,
+    pub value: Value,
     #[serde()]
     #[serde(rename = "type")]
     type_: KeyValueType,
-    group: String,
+    pub group: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

@@ -1,7 +1,6 @@
-use crate::lambda::param_service::LambdaStrategyParamService;
+// use crate::lambda::param_service::LambdaStrategyParamService;
 
 use confy::ConfyError;
-use rocket::tokio::sync::mpsc::error::SendError;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -12,6 +11,8 @@ use crate::lambda::LambdaState;
 use std::fmt::Debug;
 use std::sync::Arc;
 use tokio::sync::RwLock;
+use tokio::sync::mpsc::error::SendError;
+use crate::lambda::strategy::LambdaRegistry;
 
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]
 pub struct LambdaParams {
@@ -22,6 +23,7 @@ pub struct LambdaParams {
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]
 pub struct LambdaInstanceConfig {
     pub name: String,
+    pub registry: LambdaRegistry,
     pub lambda_params: LambdaParams,
     pub init_params: Value,
     pub strategy_params: Value,
@@ -29,6 +31,7 @@ pub struct LambdaInstanceConfig {
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]
 pub struct GenericLambdaInstanceConfig {
     pub name: String,
+    pub registry: LambdaRegistry,
     pub lambda_params: LambdaParams,
 }
 
@@ -47,6 +50,7 @@ impl LambdaInstanceConfig {
     pub fn save(&self) -> Result<(), ConfyError> {
         let config = LambdaInstanceConfig {
             name: self.name.clone(),
+            registry: self.registry.clone(),
             lambda_params: self.lambda_params.clone(),
             init_params: self.init_params.clone(),
             strategy_params: self.strategy_params.clone(),
@@ -176,6 +180,7 @@ impl LambdaInstance {
             .unwrap();
         let config = LambdaInstanceConfig {
             name: self.name.clone(),
+            registry: LambdaRegistry::SwapMM,
             lambda_params: self.lambda_params.clone(),
             init_params: self.init_params.clone(),
             strategy_params,

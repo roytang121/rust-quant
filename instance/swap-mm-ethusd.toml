@@ -1,4 +1,5 @@
 name = 'swap-mm-ethusd'
+registry = 'SwapMM'
 
 [lambda_params]
 book = 'SWAP-MM-ETH'

@@ -67,7 +67,7 @@ impl RedisBackedMessageBus {
                 .publish::<&str, &str, i32>(channel.as_str(), packed.as_str())
                 .await;
             match result {
-                Ok(_) => {}
+                Ok(_) => { }
                 Err(err) => error!("redis publish error: {}", err),
             }
         });

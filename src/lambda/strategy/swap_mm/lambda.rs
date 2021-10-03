@@ -310,7 +310,7 @@ impl Lambda {
         Ok(())
     }
 
-    pub async fn subscribe(&self) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn subscribe(&self) -> anyhow::Result<()> {
         let hedger =
             SimpleHedger::new(self.depth_instrument.clone(), self.hedge_instrument.clone());
         tokio::select! {

@@ -1,16 +1,22 @@
+pub use engine::LambdaEngine;
+pub use lambda_instance::{GenericLambdaInstanceConfig, LambdaInstanceConfig, LambdaParams};
+
 mod engine;
-mod lambda;
 mod lambda_instance;
 mod param_service;
 
-pub use engine::{LambdaEngine};
-pub use lambda::{ SimpleHedger, Lambda };
-pub use lambda_instance::{
-    GenericLambdaInstanceConfig, LambdaInstance, LambdaInstanceConfig, LambdaParams,
-};
-
 pub mod strategy {
     pub mod swap_mm;
+    #[derive(Debug, Serialize, Deserialize, Clone)]
+    pub enum LambdaRegistry {
+        SwapMM,
+        LatencyMM,
+    }
+    impl Default for LambdaRegistry {
+        fn default() -> Self {
+            panic!("Should not call default for LambdaRegistry")
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, strum_macros::Display)]
@@ -26,5 +32,3 @@ impl Default for LambdaState {
         LambdaState::Init
     }
 }
-
-pub type LambdaStateCache = dashmap::DashMap<String, serde_json::Value>;

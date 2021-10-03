@@ -6,8 +6,8 @@ use mockall::{automock, mock, predicate::*};
 #[cfg(test)]
 mod lambda_test {
     use super::*;
-    use rust_quant::cache::{MarketDepthCache, OrderUpdateCache};
-    use rust_quant::lambda::{GenericLambdaInstanceConfig, Lambda, LambdaState};
+    use rust_quant::cache::{MarketDepthCache, OrderUpdateCache, ValueCache};
+    use rust_quant::lambda::{GenericLambdaInstanceConfig, LambdaState};
     use rust_quant::model::{InstrumentSymbol, MeasurementCache, Instrument};
     use rust_quant::pubsub::simple_message_bus::RedisBackedMessageBus;
     use rust_quant::pubsub::SubscribeMarketDepthRequest;
@@ -16,6 +16,7 @@ mod lambda_test {
     use test_common::common::*;
     use rust_quant::model::market_data_model::{MarketDepth, PriceLevel};
     use rust_quant::model::constants::Exchanges;
+    use rust_quant::lambda::strategy::swap_mm::lambda::Lambda;
 
     #[tokio::test]
     pub async fn it_init() {
@@ -34,12 +35,14 @@ mod lambda_test {
         let order_update_cache = Arc::new(OrderUpdateCache::new());
         let message_bus = Arc::new(RedisBackedMessageBus::new().await.unwrap());
         let measurement_cache = Arc::new(MeasurementCache::new().await);
+        let value_cache = Arc::new(ValueCache::new(instance_config.clone()).await);
         let lambda = Arc::new(Lambda::new(
             instance_config,
             market_depth_cache.clone(),
             order_update_cache.clone(),
             message_bus.publish_tx.clone(),
             measurement_cache.clone(),
+            value_cache.clone(),
         ));
 
         spawn_thread_market_depth_cache(market_depth_cache.clone(), subscribe_md_requests);

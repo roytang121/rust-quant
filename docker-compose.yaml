@@ -49,6 +49,16 @@ services:
     ports:
       - 10500:6379
 
+  redis-grpc:
+    image: redis-web_main
+    depends_on:
+      - redis
+    environment:
+      - RUST_LOG=INFO
+      - REDIS_GRPC_HOST=redis://redis:6379
+    ports:
+      - '50051:50051'
+
   lambda_engine:
     build:
       context: .

@@ -1,13 +1,13 @@
 #[cfg(test)]
 pub mod common {
-    use rust_quant::cache::{OrderUpdateCache, MarketDepthCache};
+    use rust_quant::cache::{MarketDepthCache, OrderUpdateCache};
+    use rust_quant::lambda::strategy::swap_mm::lambda::Lambda;
     use rust_quant::pubsub::simple_message_bus::RedisBackedMessageBus;
+    use rust_quant::pubsub::SubscribeMarketDepthRequest;
+    use std::error::Error;
     use std::sync::{Arc, Once};
     use std::time::Duration;
-    use rust_quant::pubsub::SubscribeMarketDepthRequest;
-    use rust_quant::lambda::Lambda;
-    use rocket::tokio::task::JoinHandle;
-    use std::error::Error;
+    use tokio::task::JoinHandle;
 
     static INIT: Once = Once::new();
 
@@ -27,12 +27,17 @@ pub mod common {
         tokio::spawn(async move { message_bus.subscribe().await });
     }
 
-    pub fn spawn_thread_market_depth_cache(market_depth_cache: Arc<MarketDepthCache>, requests: Vec<SubscribeMarketDepthRequest>) {
+    pub fn spawn_thread_market_depth_cache(
+        market_depth_cache: Arc<MarketDepthCache>,
+        requests: Vec<SubscribeMarketDepthRequest>,
+    ) {
         tokio::spawn(async move { market_depth_cache.subscribe(requests.as_slice()).await });
     }
 
     pub fn spawn_thread_lambda(lambda: Arc<Lambda>) -> JoinHandle<()> {
-        tokio::spawn(async move { lambda.subscribe().await; })
+        tokio::spawn(async move {
+            lambda.subscribe().await;
+        })
     }
 
     pub async fn sleep(ms: u64) {

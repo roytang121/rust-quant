@@ -1,6 +1,6 @@
 #[cfg(test)]
-use rust_quant::lambda::SimpleHedger;
 use std::sync::Arc;
+use rust_quant::lambda::strategy::swap_mm::lambda::SimpleHedger;
 
 #[cfg(test)]
 mod test_common;
@@ -17,7 +17,6 @@ fn spawn_thread_hedger_subscribe(hedger: Arc<SimpleHedger>) {
 mod simple_hedger_test {
     use super::*;
     use rust_quant::cache::OrderUpdateCache;
-    use rust_quant::lambda::SimpleHedger;
     use rust_quant::model::constants::Exchanges;
     use rust_quant::model::{Instrument, OrderFill, OrderSide};
     use rust_quant::pubsub::simple_message_bus::RedisBackedMessageBus;

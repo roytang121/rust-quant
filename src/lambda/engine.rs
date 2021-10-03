@@ -8,12 +8,14 @@ use crate::ftx::ftx_order_gateway::FtxOrderGateway;
 
 use crate::ftx::FtxRestClient;
 use crate::lambda::lambda_instance::GenericLambdaInstanceConfig;
-use crate::lambda::{Lambda, LambdaInstanceConfig};
+use crate::lambda::{LambdaInstanceConfig};
 use crate::model::MeasurementCache;
 use crate::pubsub::simple_message_bus::{MessageBusSender, RedisBackedMessageBus};
 use crate::pubsub::SubscribeMarketDepthRequest;
 use crate::view::view_service::ViewService;
 use std::time::Duration;
+use crate::lambda::strategy::LambdaRegistry;
+use crate::lambda::strategy::swap_mm::lambda::Lambda;
 
 pub async fn thread_order_update_cache(
     order_update_cache: Arc<OrderUpdateCache>,
@@ -87,7 +89,7 @@ impl LambdaEngine {
         let measurement_cache = Arc::new(MeasurementCache::new().await);
 
         // value cache
-        let value_cache = Arc::new(ValueCache::new());
+        let value_cache = Arc::new(ValueCache::new(instance_config.clone()).await);
 
         // get lambda params
         let lambda_instance_config = LambdaInstanceConfig::load(instance_config.name.as_str());
@@ -107,16 +109,27 @@ impl LambdaEngine {
         };
     }
 
+    pub async fn subscribe_lambda(&self) -> anyhow::Result<()> {
+        match self.instance_config.registry {
+            LambdaRegistry::SwapMM => {
+                // lambda
+                let lambda = Lambda::new(
+                    self.instance_config.clone(),
+                    self.market_depth_cache.clone(),
+                    self.order_update_cache.clone(),
+                    self.message_bus_sender.clone(),
+                    self.measurement_cache.clone(),
+                    self.value_cache.clone(),
+                );
+
+                lambda.subscribe().await?;
+            }
+            LambdaRegistry::LatencyMM => {}
+        }
+        Ok(())
+    }
+
     pub async fn subscribe(&self) -> anyhow::Result<()> {
-        // lambda
-        let lambda = Lambda::new(
-            self.instance_config.clone(),
-            self.market_depth_cache.clone(),
-            self.order_update_cache.clone(),
-            self.message_bus_sender.clone(),
-            self.measurement_cache.clone(),
-            self.value_cache.clone(),
-        );
         let market_depth_tokens = &self.instance_config.lambda_params.market_depths;
         let market_depth_requests: Vec<SubscribeMarketDepthRequest> = market_depth_tokens
             .iter()
@@ -142,7 +155,7 @@ impl LambdaEngine {
             result = self.message_bus.subscribe() => {
                 log::error!("message_bus completed: {:?}", result)
             },
-            result = lambda.subscribe() => {
+            result = self.subscribe_lambda() => {
                 log::error!("lambda completed: {:?}", result)
             },
             result = view_service.subscribe() => {
