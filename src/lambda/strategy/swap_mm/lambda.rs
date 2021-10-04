@@ -213,14 +213,14 @@ impl Lambda {
                     state.target_ask_level = None
                 }
             }
-            tokio::time::sleep(Duration::from_millis(10)).await;
+            tokio::time::sleep(Duration::from_millis(5)).await;
         }
     }
 
     async fn period_cancel_orders(&self) -> anyhow::Result<()> {
         loop {
             self.cancel_orders().await;
-            tokio::time::sleep(Duration::from_millis(10)).await;
+            tokio::time::sleep(Duration::from_millis(5)).await;
         }
     }
 
