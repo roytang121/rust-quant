@@ -308,15 +308,10 @@ impl Lambda {
         let params = self.get_strategy_params();
         if open_orders.is_empty() {
             let state = self.get_strategy_state();
-            if let (
-                enable_buy,
-                Some(depth_bid_px),
-                Some(target_bid_px),
-                Some(target_bid_level),
-                Some(bid_basis_bp),
-            ) = (
+
+            // place order buy
+            if let (enable_buy, Some(target_bid_px), Some(target_bid_level), Some(bid_basis_bp)) = (
                 state.enable_buy,
-                state.depth_bid_px,
                 state.target_bid_px,
                 state.target_bid_level,
                 state.bid_basis_bp,
@@ -338,6 +333,32 @@ impl Lambda {
                     }
                 }
             }
+
+            // place order sell
+            if let (enable_sell, Some(target_ask_px), Some(target_ask_level), Some(ask_basis_bp)) = (
+                state.enable_sell,
+                state.target_ask_px,
+                state.target_ask_level,
+                state.ask_basis_bp,
+            ) {
+                if enable_sell
+                    && target_ask_level >= params.min_level
+                    && ask_basis_bp >= params.min_basis
+                {
+                    self.depth_instrument
+                        .send_order(
+                            OrderSide::Sell,
+                            target_ask_px,
+                            params.base_size,
+                            OrderType::Limit,
+                        )
+                        .await;
+                    if let Some(mut state) = self.write_strategy_state() {
+                        state.enable_sell = false;
+                    }
+                }
+            }
+
         };
         Ok(())
     }
