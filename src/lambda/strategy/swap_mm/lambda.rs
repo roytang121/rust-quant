@@ -2,9 +2,7 @@ use crate::cache::{MarketDepthCache, ValueCache, ValueCacheKey};
 use crate::lambda::strategy::swap_mm::params::{
     SwapMMInitParams, SwapMMStrategyParams, SwapMMStrategyStateStruct,
 };
-use crate::lambda::{
-    GenericLambdaInstanceConfig, LambdaInstanceConfig, LambdaState,
-};
+use crate::lambda::{GenericLambdaInstanceConfig, LambdaInstanceConfig, LambdaState};
 
 use crate::model::{
     Instrument, InstrumentSymbol, MeasurementCache, OrderFill, OrderSide, OrderStatus, OrderType,
@@ -20,9 +18,9 @@ use dashmap::{DashMap, DashSet};
 
 use std::collections::hash_map::RandomState;
 
+use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
-use std::str::FromStr;
 
 type InitParams = SwapMMInitParams;
 type StrategyParams = SwapMMStrategyParams;
@@ -51,11 +49,12 @@ impl Lambda {
         // get init params
         let lambda_instance_config = LambdaInstanceConfig::load(instance_config.name.as_str());
         let init_params =
-            serde_json::from_value::<InitParams>(lambda_instance_config.init_params.clone()).unwrap();
+            serde_json::from_value::<InitParams>(lambda_instance_config.init_params.clone())
+                .unwrap();
 
         // depth_instrument
-        let depth_instrument_token =
-            InstrumentSymbol::from_str(init_params.depth_symbol.as_str()).expect("Cannot parse depth instrument from token");
+        let depth_instrument_token = InstrumentSymbol::from_str(init_params.depth_symbol.as_str())
+            .expect("Cannot parse depth instrument from token");
         let depth_instrument = match depth_instrument_token {
             InstrumentSymbol(exchange, market) => Arc::new(Instrument {
                 exchange,
@@ -65,8 +64,8 @@ impl Lambda {
             }),
         };
         // hedge_instrument
-        let hedge_instrument_token =
-            InstrumentSymbol::from_str(init_params.hedge_symbol.as_str()).expect("Cannot parse hedge instrumen from token");
+        let hedge_instrument_token = InstrumentSymbol::from_str(init_params.hedge_symbol.as_str())
+            .expect("Cannot parse hedge instrumen from token");
         let hedge_instrument = match hedge_instrument_token {
             InstrumentSymbol(exchange, market) => Arc::new(Instrument {
                 exchange,
@@ -114,7 +113,8 @@ impl Lambda {
     async fn publish_state(&self) -> anyhow::Result<()> {
         let strategy_state = self.get_strategy_state();
         let value = serde_json::to_value(strategy_state)?;
-        self.value_cache.insert(ValueCacheKey::StrategyStates, value);
+        self.value_cache
+            .insert(ValueCacheKey::StrategyStates, value);
         Ok(())
     }
 
@@ -184,17 +184,13 @@ impl Lambda {
                         None => {
                             state.depth_bid_px = None;
                         }
-                        Some(bid_0) => {
-                            state.depth_bid_px = Some(bid_0.price)
-                        }
+                        Some(bid_0) => state.depth_bid_px = Some(bid_0.price),
                     }
                     match md.asks.get(0) {
                         None => {
                             state.depth_ask_px = None;
                         }
-                        Some(ask_0) => {
-                            state.depth_ask_px = Some(ask_0.price)
-                        }
+                        Some(ask_0) => state.depth_ask_px = Some(ask_0.price),
                     }
                     match open_bid_orders.get(0) {
                         None => {
@@ -250,34 +246,60 @@ impl Lambda {
 
     async fn cancel_orders(&self) {
         let open_buy_orders = self.depth_instrument.get_open_buy_orders(false);
+        let open_sell_orders = self.depth_instrument.get_open_sell_orders(false);
         if open_buy_orders.len() > 1 {
-            panic!("depth_instrument open_buy_orders > 1");
+            panic!("invalid state: depth_instrument open_buy_orders > 1");
+        }
+        if open_sell_orders.len() > 1 {
+            panic!("invalid state: depth_instrument open_sell_orders > 1");
         }
 
         let open_bid = open_buy_orders.get(0);
+        let open_ask = open_sell_orders.get(0);
 
         let state = self.get_strategy_state();
+
+        // cancel buy
         if let (Some(open_bid), Some(target_bid_px)) = (open_bid, state.target_bid_px) {
             if !open_buy_orders.is_empty() && open_bid.price != target_bid_px {
                 for order in open_buy_orders {
                     self.depth_instrument
-                        .cancel_order(order.client_id.unwrap_or_default().as_str()).await;
+                        .cancel_order(order.client_id.unwrap_or_default().as_str())
+                        .await;
                 }
-                if let Some(mut write_state) =
-                self.write_strategy_state()
-                {
+                if let Some(mut write_state) = self.write_strategy_state() {
                     write_state.enable_buy = true;
                 }
             }
-        } else { // no first active order
-            if open_buy_orders.is_empty() && !state.enable_buy { // if no open orders
-                if let Some(mut write_state) =
-                self.write_strategy_state()
-                {
+        } else {
+            // no first active order
+            if open_buy_orders.is_empty() && !state.enable_buy {
+                // if no open orders
+                if let Some(mut write_state) = self.write_strategy_state() {
                     write_state.enable_buy = true;
                 }
             }
         };
+
+        // cancel sell
+        if let (Some(open_ask), Some(target_ask_px)) = (open_ask, state.target_ask_px) {
+            if !open_sell_orders.is_empty() && open_ask.price != target_ask_px {
+                for order in open_sell_orders {
+                    self.depth_instrument
+                        .cancel_order(order.client_id.unwrap_or_default().as_str())
+                        .await;
+                }
+            }
+            if let Some(mut write_state) = self.write_strategy_state() {
+                write_state.enable_sell = true;
+            }
+        } else {
+            if open_sell_orders.is_empty() && !state.enable_sell {
+                if let Some(mut write_state) = self.write_strategy_state() {
+                    write_state.enable_sell = true;
+                }
+            }
+        }
         drop(state)
     }
 
@@ -286,14 +308,23 @@ impl Lambda {
         let params = self.get_strategy_params();
         if open_orders.is_empty() {
             let state = self.get_strategy_state();
-            if let (enable_buy, Some(depth_bid_px), Some(target_bid_px), Some(target_bid_level), Some(bid_basis_bp)) = (
+            if let (
+                enable_buy,
+                Some(depth_bid_px),
+                Some(target_bid_px),
+                Some(target_bid_level),
+                Some(bid_basis_bp),
+            ) = (
                 state.enable_buy,
                 state.depth_bid_px,
                 state.target_bid_px,
                 state.target_bid_level,
                 state.bid_basis_bp,
             ) {
-                if enable_buy && target_bid_level >= params.min_level && bid_basis_bp <= -params.min_basis {
+                if enable_buy
+                    && target_bid_level >= params.min_level
+                    && bid_basis_bp <= -params.min_basis
+                {
                     self.depth_instrument
                         .send_order(
                             OrderSide::Buy,
