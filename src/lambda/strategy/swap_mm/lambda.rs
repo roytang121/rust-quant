@@ -130,11 +130,12 @@ impl Lambda {
 
     async fn period_update(&self) -> anyhow::Result<()> {
         loop {
+            let params = self.get_strategy_params();
             if let Some(md) = self
                 .market_depth
                 .get_clone(self.depth_instrument.market.as_str())
             {
-                let target_size = 31.0f64;
+                let target_size = params.target_acc_size;
 
                 let mut sum_bid_size = 0.0f64;
                 let mut target_bid_price = 0.0f64;

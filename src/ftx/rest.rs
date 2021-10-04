@@ -190,6 +190,15 @@ impl FtxRestClient {
         let request = self.post("/orders", json);
         let response = request.send().await?;
         let json = response.json::<serde_json::Value>().await?;
+        match json["success"].as_bool() {
+            None => {}
+            Some(success) => {
+                if !success {
+                    error!("{}", json);
+                    return Err(anyhow::anyhow!("{}", json))
+                }
+            }
+        }
         Ok(json)
     }
 
