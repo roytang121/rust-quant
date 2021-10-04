@@ -1,6 +1,7 @@
 export enum ParamType {
   String = 'String',
-  Number = 'Number',
+  Int = 'Int',
+  Float = 'Float',
   Bool = 'Bool',
 }
 export type LamabdaParamEntry = {
