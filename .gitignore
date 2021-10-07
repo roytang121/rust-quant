@@ -1,6 +1,7 @@
 # Created by https://www.toptal.com/developers/gitignore/api/rust,visualstudiocode,intellij,node,yarn,macos,windows
 # Edit at https://www.toptal.com/developers/gitignore?templates=rust,visualstudiocode,intellij,node,yarn,macos,windows
 data
+cert
 
 *.config.toml
 frontend/node_modules
