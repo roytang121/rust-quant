@@ -11,6 +11,7 @@ services:
     secrets:
       - nginx.cert
       - nginx.key
+      - .htpasswd
 
   postgres:
     image: postgres
@@ -81,8 +82,6 @@ services:
   grafana:
     container_name: grafana
     image: grafana/grafana:latest
-    ports:
-      - '10600:3000'
     volumes:
       - $PWD/grafana.ini:/etc/grafana/grafana.ini
     environment:
@@ -98,3 +97,5 @@ secrets:
     file: ./cert/nginx.cert
   nginx.key:
     file: ./cert/nginx.key
+  .htpasswd:
+    file: ./.htpasswd
