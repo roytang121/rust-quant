@@ -62,7 +62,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                 let _cmd = db.execute(
                     "insert into trades (id, exchange, market, price, side, size, time) values ($1, $2, $3, $4, $5, $6, $7)",
                     &[&trade.id, &exchange, &market, &trade.price, &trade.side, &trade.size, &SystemTime::from(DateTime::parse_from_rfc3339(trade.time.as_str())?)],
-                ).ok();
+                ).unwrap();
                 // all_trades.push(trade);
             }
             // println!("{}", all_trades.len());
