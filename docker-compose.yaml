@@ -67,18 +67,6 @@ services:
     ports:
       - 6008:6008
 
-  gen_js:
-    build:
-      context: .
-      dockerfile: gen_js.Dockerfile
-    working_dir: /app
-    environment:
-      - DIR=/app/proto
-      - OUT_DIR=/app/proto/gen-js
-      - PROTO_FILE=lambda_view.proto
-    volumes:
-      - ./proto:/app/proto
-
   grafana:
     container_name: grafana
     image: grafana/grafana:latest
