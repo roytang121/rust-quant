@@ -48,7 +48,7 @@ services:
       - 10500:6379
 
   redis-grpc:
-    image: redis-web_main
+    image: redis-grpc_main
     depends_on:
       - redis
     environment:
@@ -84,6 +84,7 @@ services:
     image: grafana/grafana:latest
     volumes:
       - $PWD/grafana.ini:/etc/grafana/grafana.ini
+      - ./data/grafana:/var/lib/grafana
     environment:
       - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
       - GF_AUTH_ANONYMOUS_ENABLED=true
