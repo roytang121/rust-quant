@@ -21,6 +21,11 @@ const Lambda = ({ host, instance }: Props) => {
   const [paramEntries, setParamEntries] = useState<LamabdaParamEntry[]>([]);
 
   useEffect(() => {
+    setStateEntries([])
+    setParamEntries([])
+  }, [host, instance])
+
+  useEffect(() => {
     const service = new RedisGrpcPromiseClient(host);
 
     let sub_request = new SubscribeRequest();
