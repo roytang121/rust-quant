@@ -3,31 +3,28 @@ import { CellEditingStoppedEvent, ColDef } from "ag-grid-community";
 import "ag-grid-enterprise";
 import { AgGridReact } from "ag-grid-react";
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
-import { combineLatest, switchMap, switchMapTo, timer } from "rxjs";
-import LambdaApi from "./lambda.api";
-import { LamabdaParamEntry, ParamType } from "./lambda.types";
-
+import { RedisGrpcPromiseClient } from "redis-grpc/gen-js/redis_grpc_grpc_web_pb";
 import {
   PublishRequest,
   SubscribeRequest,
 } from "redis-grpc/gen-js/redis_grpc_pb";
-import { RedisGrpcPromiseClient } from "redis-grpc/gen-js/redis_grpc_grpc_web_pb";
+import { LamabdaParamEntry, ParamType } from "./lambda.types";
 import { entryValuePaser } from "./valueParser";
 
 interface Props {
   host: string;
+  instance: string;
 }
 
-const Lambda = ({ host }: Props) => {
-  const [api] = useState(LambdaApi(host));
+const Lambda = ({ host, instance }: Props) => {
   const [stateEntries, setStateEntries] = useState<LamabdaParamEntry[]>([]);
   const [paramEntries, setParamEntries] = useState<LamabdaParamEntry[]>([]);
 
   useEffect(() => {
-    const service = new RedisGrpcPromiseClient("http://localhost:50051");
+    const service = new RedisGrpcPromiseClient(host);
 
     let sub_request = new SubscribeRequest();
-    sub_request.setChannelsList(["StrategyStates:swap-mm-ethusd"]);
+    sub_request.setChannelsList([`StrategyStates:${instance}`]);
     let pubsub = service.subscribe(sub_request);
     pubsub.on("data", (data) => {
       const message = data.getMessage();
@@ -38,13 +35,13 @@ const Lambda = ({ host }: Props) => {
     return () => {
       pubsub.cancel();
     };
-  }, []);
+  }, [host, instance]);
 
   useEffect(() => {
-    const service = new RedisGrpcPromiseClient("http://localhost:50051");
+    const service = new RedisGrpcPromiseClient(host);
 
     let sub_request = new SubscribeRequest();
-    sub_request.setChannelsList(["StrategyParams:swap-mm-ethusd"]);
+    sub_request.setChannelsList([`StrategyParams:${instance}`]);
     let pubsub = service.subscribe(sub_request);
     pubsub.on("data", (data) => {
       const message = data.getMessage();
@@ -55,29 +52,16 @@ const Lambda = ({ host }: Props) => {
     return () => {
       pubsub.cancel();
     };
-  }, []);
+  }, [host, instance]);
 
   const updateParam = useCallback((entry: LamabdaParamEntry) => {
-    const service = new RedisGrpcPromiseClient("http://localhost:50051");
+    const service = new RedisGrpcPromiseClient(host);
     const pub_request = new PublishRequest();
-    pub_request.setChannel("UpdateParam:swap-mm-ethusd");
+    pub_request.setChannel(`UpdateParam:${instance}`);
     pub_request.setMessage(JSON.stringify(entry));
-    console.log(pub_request)
+    console.log(pub_request);
     service.publish(pub_request).then(console.log).catch(console.error);
   }, []);
-
-  // useEffect(() => {
-  //   const sub = timer(0, 1000)
-  //     .pipe(switchMap(t => {
-  //       return combineLatest([api.getStates(), api.getParams()])
-  //     }))
-  //     .subscribe(async ([state_response, params_response]) => {
-  //       const states: LamabdaParamEntry[] = await state_response.json();
-  //       const params: LamabdaParamEntry[] = await params_response.json();
-  //       setEntries([...states, ...params]);
-  //     });
-  //   return () => sub.unsubscribe();
-  // }, [api]);
 
   const colDefs = useMemo((): ColDef[] => {
     return [
@@ -107,15 +91,31 @@ const Lambda = ({ host }: Props) => {
       <Navbar>
         <NavbarGroup>
           <Button
+            icon="play"
             text="Start"
             intent="primary"
-            onClick={() => updateParam({ key: 'state', group: 'params', value: 'Live', type: ParamType.String })}
+            onClick={() =>
+              updateParam({
+                key: "state",
+                group: "params",
+                value: "Live",
+                type: ParamType.String,
+              })
+            }
           />
           <NavbarDivider />
           <Button
+            icon="stop"
             text="Stop"
             intent="danger"
-            onClick={() => updateParam({ key: 'state', group: 'params', value: 'Stopped', type: ParamType.String })}
+            onClick={() =>
+              updateParam({
+                key: "state",
+                group: "params",
+                value: "Stopped",
+                type: ParamType.String,
+              })
+            }
           />
         </NavbarGroup>
       </Navbar>
