@@ -2,6 +2,7 @@
   "name": "frontend",
   "version": "0.1.0",
   "private": true,
+  "homepage": "/app",
   "dependencies": {
     "@blueprintjs/core": "^3.50.1",
     "@reduxjs/toolkit": "^1.6.1",
@@ -29,8 +30,8 @@
     "typescript": "^4.4.3"
   },
   "scripts": {
-    "start": "parcel ./public/index.html",
-    "build": "parcel build ./public/index.html",
+    "start": "react-scripts start",
+    "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject"
   },
@@ -50,10 +51,6 @@
     ]
   },
   "devDependencies": {
-    "@parcel/packager-raw-url": "2.0.0-rc.0",
-    "@parcel/transformer-image": "2.0.0-rc.0",
-    "@parcel/transformer-webmanifest": "2.0.0-rc.0",
-    "@types/lodash-es": "^4.17.5",
-    "parcel": "^2.0.0-rc.0"
+    "@types/lodash-es": "^4.17.5"
   }
 }

@@ -13,6 +13,12 @@ services:
       - nginx.key
       - .htpasswd
 
+  frontend:
+    build:
+      context: ./frontend
+    volumes:
+      - ./frontend/nginx.conf:/etc/nginx/nginx.conf
+
   postgres:
     image: postgres
     # restart: always
