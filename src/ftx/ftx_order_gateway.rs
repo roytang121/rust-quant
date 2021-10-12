@@ -72,8 +72,8 @@ impl OrderGateway for FtxOrderGateway {
                 log::error!("cancel_order_service panic: {}", err)
             },
         }
-        panic!("FtxOrderGateway subscribe uncaught")
-        // Err(anyhow!("FtxOrderGateway subscribe uncaught"))
+        // panic!("FtxOrderGateway subscribe uncaught")
+        Err(anyhow!("FtxOrderGateway subscribe uncaught"))
     }
 }
 

@@ -8,14 +8,14 @@ use crate::ftx::ftx_order_gateway::FtxOrderGateway;
 
 use crate::ftx::FtxRestClient;
 use crate::lambda::lambda_instance::GenericLambdaInstanceConfig;
-use crate::lambda::{LambdaInstanceConfig};
+use crate::lambda::strategy::swap_mm::lambda::Lambda;
+use crate::lambda::strategy::LambdaRegistry;
+use crate::lambda::LambdaInstanceConfig;
 use crate::model::MeasurementCache;
 use crate::pubsub::simple_message_bus::{MessageBusSender, RedisBackedMessageBus};
 use crate::pubsub::SubscribeMarketDepthRequest;
 use crate::view::view_service::ViewService;
 use std::time::Duration;
-use crate::lambda::strategy::LambdaRegistry;
-use crate::lambda::strategy::swap_mm::lambda::Lambda;
 
 pub async fn thread_order_update_cache(
     order_update_cache: Arc<OrderUpdateCache>,
@@ -44,20 +44,19 @@ pub async fn thread_order_gateway(
 ) -> anyhow::Result<()> {
     // order gateway
     tokio::spawn(async move {
-        loop {
-            let client = Arc::new(FtxRestClient::new());
-            let ftx_order_gateway = FtxOrderGateway::new(
-                message_bus_sender.clone(),
-                client.clone(),
-                measurement_cache.clone(),
-            );
-            tokio::select! {
-                Err(err) = ftx_order_gateway.subscribe() => {
-                    error!("ftx_order_gateway: {}", err);
-                }
+        let client = Arc::new(FtxRestClient::new());
+        let ftx_order_gateway = FtxOrderGateway::new(
+            message_bus_sender.clone(),
+            client.clone(),
+            measurement_cache.clone(),
+        );
+        tokio::select! {
+            Err(err) = ftx_order_gateway.subscribe() => {
+                error!("ftx_order_gateway: {}", err);
             }
-            tokio::time::sleep(Duration::from_millis(3000)).await;
         }
+        // restarting order gateway without pause-the-world is unsafe
+        // tokio::time::sleep(Duration::from_millis(1000)).await;
     })
     .await;
     Err(anyhow!("thread_order_gateway uncaught error"))
