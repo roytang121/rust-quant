@@ -54,7 +54,7 @@ services:
       - 10500:6379
 
   redis-grpc:
-    image: redis-grpc_main
+    image: roytang121/redis-grpc:v0.0.5
     depends_on:
       - redis
     environment:
