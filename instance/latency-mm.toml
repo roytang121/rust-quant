@@ -1,0 +1,20 @@
+name = 'latency-mm'
+registry = 'SwapMM'
+
+[lambda_params]
+book = 'LATENCY-MM-BTC'
+market_depths = [
+    'BTC-PERP.FTX',
+    'BTC/USD.FTX',
+]
+
+[init_params]
+depth_symbol = 'BTC-PERP.FTX'
+hedge_symbol = 'BTC/USD.FTX'
+
+[strategy_params]
+base_size = 0.0001
+min_basis = 1.0
+min_level = 20
+state = 'Init'
+target_acc_size = 10.0
