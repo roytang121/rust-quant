@@ -23,14 +23,5 @@ module.exports = {
       args: "latency-mm",
       env_production,
     },
-    {
-      name: "swap-mm-ethusd",
-      script: "./target/release/luban",
-      args: "latency-mm",
-      env: {
-        ENV: '_'
-      },
-      env_production,
-    },
   ],
 };
