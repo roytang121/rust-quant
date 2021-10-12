@@ -1,5 +1,6 @@
 const env_production = {
   RUST_LOG: "WARN",
+  ENV: "sim"
 };
 
 module.exports = {
@@ -20,9 +21,6 @@ module.exports = {
       name: "latency-mm",
       script: "./target/release/luban",
       args: "latency-mm",
-      env: {
-        ENV: 'sim'
-      },
       env_production,
     },
     {
