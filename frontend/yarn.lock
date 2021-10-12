@@ -9432,10 +9432,10 @@ redent@^3.0.0:
     indent-string "^4.0.0"
     strip-indent "^3.0.0"
 
-redis-grpc@^0.0.2:
-  version "0.0.2"
-  resolved "https://registry.yarnpkg.com/redis-grpc/-/redis-grpc-0.0.2.tgz#873203d793de33f713df1c4b41e3cbd09e25135a"
-  integrity sha512-281oZZy1Zk3zWDGHkkHRDffAXL2JHJEOD3vEqRebkFQh9TaoN2tBEEJrOc+UrMVwKxxmeKRideEuesc6Q0XRTA==
+redis-grpc@^0.0.5:
+  version "0.0.5"
+  resolved "https://registry.yarnpkg.com/redis-grpc/-/redis-grpc-0.0.5.tgz#4fe462202de520cdc1feacb537bcb3498985e837"
+  integrity sha512-03Lg5kBqzBCS5Czl8vc/1ZSukVW8lYHLG2PehL32deW8770qUegcdTW7gqea4xXLRq5Sq7wxyMyeJCk0RZqnhA==
   dependencies:
     google-protobuf "^3.18.0"
     grpc-web "^1.2.1"
