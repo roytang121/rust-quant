@@ -19,7 +19,7 @@ module.exports = {
     },
     {
       name: "latency-mm",
-      script: "./target/release/luban",
+      script: "./target/release/container",
       args: "latency-mm",
       env_production,
     },
