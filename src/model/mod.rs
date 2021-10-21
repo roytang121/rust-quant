@@ -15,4 +15,5 @@ pub mod global_measurement {
     use crate::model::{Measurement, TSOptions};
 
     pub static ORDER_LATENCY: Measurement = Measurement::OrderLatency { options: TSOptions { retention: 0 } };
+    pub static TO_ACK: Measurement = Measurement::ToAck { options: TSOptions { retention: 0 }};
 }

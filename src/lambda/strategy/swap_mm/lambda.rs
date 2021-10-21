@@ -61,6 +61,7 @@ impl Lambda {
                 market,
                 order_cache: order_cache.clone(),
                 message_bus_sender: message_bus_sender.clone(),
+                measurement_cache: measurement_cache.clone(),
             }),
         };
         // hedge_instrument
@@ -72,6 +73,7 @@ impl Lambda {
                 market,
                 order_cache: order_cache.clone(),
                 message_bus_sender: message_bus_sender.clone(),
+                measurement_cache: measurement_cache.clone(),
             }),
         };
 

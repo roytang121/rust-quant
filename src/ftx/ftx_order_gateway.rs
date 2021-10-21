@@ -21,7 +21,7 @@ use tokio::net::TcpStream;
 use tokio_stream::wrappers::ReceiverStream;
 use tokio_tungstenite::tungstenite::Message;
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
-use crate::model::global_measurement::ORDER_LATENCY;
+use crate::model::global_measurement::{ORDER_LATENCY, TO_ACK};
 
 pub struct FtxOrderGateway {
     message_bus_sender: MessageBusSender,
@@ -249,12 +249,20 @@ impl FtxOrderRequestService {
         order_request: OrderRequest,
         measurement_cache: Arc<MeasurementCache>,
     ) {
+        // measure toAct
+        if let Some(ref client_id) = order_request.client_id {
+            if let Some(to_ack) = measurement_cache.time_end(format!("toAck:{}", client_id).as_str()) {
+                measurement_cache.add_point_now(&TO_ACK, to_ack as f64);
+            } else {
+                panic!("no act");
+            }
+        }
         let event_id = order_request.client_id.clone().unwrap();
         measurement_cache.time_start(event_id.as_str());
         let original_request = order_request.clone();
         let api_result = client.place_order(order_request).await;
         if let Some(latency) = measurement_cache.time_end(event_id.as_str()) {
-            measurement_cache.add_point_now(&ORDER_LATENCY, latency as f64)
+            measurement_cache.add_point_now(&ORDER_LATENCY, latency as f64);
         }
         match api_result {
             Ok(_response) => {}

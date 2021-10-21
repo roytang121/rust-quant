@@ -1,6 +1,6 @@
 use crate::cache::OrderUpdateCache;
 use crate::model::constants::{Exchanges, PublishChannel};
-use crate::model::{OrderFill, OrderRequest, OrderSide, OrderStatus, OrderType, OrderUpdate};
+use crate::model::{MeasurementCache, OrderFill, OrderRequest, OrderSide, OrderStatus, OrderType, OrderUpdate};
 
 use crate::pubsub::PublishPayload;
 
@@ -10,12 +10,12 @@ use crate::pubsub::simple_message_bus::{
 pub use std::str::FromStr;
 use std::sync::Arc;
 
-#[derive(Debug)]
 pub struct Instrument {
     pub exchange: Exchanges,
     pub market: String,
     pub order_cache: Arc<OrderUpdateCache>,
     pub message_bus_sender: tokio::sync::mpsc::Sender<PublishPayload>,
+    pub measurement_cache: Arc<MeasurementCache>,
 }
 
 pub struct InstrumentSymbol(pub Exchanges, pub String);
@@ -38,12 +38,14 @@ impl Instrument {
         market: &str,
         order_cache: Arc<OrderUpdateCache>,
         message_bus_sender: tokio::sync::mpsc::Sender<PublishPayload>,
+        measurement_cache: Arc<MeasurementCache>,
     ) -> Self {
         Instrument {
             exchange,
             market: market.to_string(),
             order_cache,
             message_bus_sender,
+            measurement_cache,
         }
     }
 
@@ -118,6 +120,11 @@ impl Instrument {
             order_request,
         )
         .await?;
+        if let Some(ref client_id) = client_id {
+            self.measurement_cache.time_start(format!("toAck:{}", client_id).as_str());
+        } else {
+            panic!("no client_id")
+        }
         Ok(client_id)
     }
 

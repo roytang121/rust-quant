@@ -25,6 +25,9 @@ pub enum Measurement {
     OrderLatency {
         options: TSOptions,
     },
+    ToAck {
+        options: TSOptions,
+    }
 }
 
 trait FillRedisArgs {
@@ -57,6 +60,9 @@ impl FillRedisArgs for Measurement {
                 vec![options_args, args].concat()
             },
             Measurement::OrderLatency { options } => {
+                options.redis_args()
+            },
+            Measurement::ToAck { options } => {
                 options.redis_args()
             }
         }
@@ -171,6 +177,7 @@ impl MeasurementCache {
     }
 
     pub fn time_start(&self, event: &str) {
+        debug!("time_start: {}", event);
         match self.timer_cache.get_mut(event) {
             None => {
                 let timer_stamp = TimerStamp {
@@ -186,7 +193,8 @@ impl MeasurementCache {
     }
 
     pub fn time_end(&self, event: &str) -> Option<i64> {
-        return match self.timer_cache.get_mut(event) {
+        debug!("time_end: {}", event);
+        let time_span =  match self.timer_cache.get_mut(event) {
             None => {
                 error!("Error setting measurement cache timer_cache wit event {}: key not found", event);
                 None
@@ -196,6 +204,10 @@ impl MeasurementCache {
                 timer_stamp.end = Some(end);
                 Some(end - timer_stamp.start)
             }
-        }
+        };
+
+        // remove key from measurement cache
+        self.timer_cache.remove(event);
+        time_span
     }
 }
