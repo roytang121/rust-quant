@@ -209,7 +209,7 @@ impl OrderRequest {
                     order_update.status = OrderStatus::PendingCancel
                 }
                 ref status => {
-                    warn!("order status {}. skipping cancel_order", status.to_string());
+                    debug!("order status {}. skipping cancel_order", status.to_string());
                     return Ok(())
                 }
             }
